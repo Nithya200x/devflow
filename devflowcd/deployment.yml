@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devflow-deployment
+  namespace: devflow
+  labels:
+    app: devflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devflow
+  template:
+    metadata:
+      labels:
+        app: devflow
+    spec:
+      containers:
+        - name: devflow-app
+          image: nithya200x/devflow-app:latest
+          ports:
+            - containerPort: 5000
