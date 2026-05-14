@@ -1,153 +1,102 @@
-# 🚀 DevFlow — Cloud-Native DevOps Automation Platform
+# DevFlow
 
-DevFlow is a cloud-native DevOps automation platform designed to streamline and automate the complete software development lifecycle. It integrates continuous integration (CI), continuous deployment (CD), containerization, and Kubernetes orchestration into a unified workflow.
+DevFlow is a cloud-native DevOps automation sample that shows a complete path from a Flask application to a Docker image, Jenkins pipeline, Docker Hub, and Kubernetes rollout.
 
----
+## What It Does
 
-## 🧠 Problem Statement
+- Runs a Flask web app with a polished dashboard at `/`.
+- Exposes runtime pod/container metadata at `/details`.
+- Exposes a health endpoint at `/health`.
+- Builds a production Docker image with Gunicorn and a container health check.
+- Deploys to Kubernetes with 2 replicas, rolling updates, probes, resource limits, a NodePort service, and an optional ingress.
+- Includes a Jenkins pipeline for test, build, push, and Kubernetes deploy.
+- Supports Kustomize overlays for dev, staging, and prod.
+- Includes optional cert-manager TLS, Prometheus alerts, a Grafana dashboard, Trivy scanning, and Cosign signing hooks.
 
-In modern development environments, teams rely on multiple disconnected tools for:
+## Architecture
 
-- Issue tracking
-- Code integration
-- Build & testing
-- Deployment
+Developer -> GitHub -> Jenkins -> Docker -> Docker Hub -> Kubernetes -> DevFlow app
 
-This leads to:
+## Project Structure
 
-- Fragmented workflows
-- Manual intervention
-- Slower release cycles
-
----
-
-## 💡 Solution — DevFlow
-
-DevFlow solves this by providing an **end-to-end automated DevOps pipeline** that connects:
-
-Code → Build → Docker → Docker Hub → Kubernetes → Deployment
-
----
-
-## ⚙️ Key Features
-
-- 🔁 **Automated CI/CD Pipeline**
-  - Built using Jenkins
-  - Automatically builds, pushes, and deploys applications
-
-- 🐳 **Containerization**
-  - Docker-based application packaging
-  - Lightweight and portable deployments
-
-- ☸️ **Kubernetes Deployment**
-  - Scalable container orchestration
-  - High availability with multiple replicas
-
-- 🔐 **Secure Image Management**
-  - Docker Hub integration for image storage
-
-- ⚡ **Real-Time Deployment Updates**
-  - Automatic rollout restart on new builds
-
----
-
-## 🏗️ Architecture
-
-Developer → GitHub → Jenkins → Docker → Docker Hub → Kubernetes → Live App
-
----
-
-## 🛠️ Tech Stack
-
-- **CI/CD**: Jenkins
-- **Containerization**: Docker
-- **Orchestration**: Kubernetes
-- **Version Control**: Git & GitHub
-- **Backend**: Flask (Python)
-
----
-
-## 🚀 Workflow
-
-1. Developer pushes code to GitHub
-2. Jenkins pipeline triggers automatically
-3. Docker image is built
-4. Image is pushed to Docker Hub
-5. Kubernetes pulls latest image
-6. Deployment is updated and restarted
-
----
-
-## 📂 Project Structure
-
+```text
 devflow/
-│
-├── devflowci/ # Application source (Flask + Dockerfile)
-├── devflowcd/ # Kubernetes deployment & service YAML
-├── Jenkinsfile # CI/CD pipeline definition
-└── README.md
+|-- Jenkinsfile
+|-- README.md
+|-- devflowci/
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   |-- src/
+|   |   |-- app.py
+|   |   |-- static/styles.css
+|   |   `-- templates/
+|   `-- tests/
+`-- devflowcd/
+    |-- kustomization.yml
+    |-- base/
+    |   |-- namespace.yml
+    |   |-- deployment.yml
+    |   |-- service.yml
+    |   `-- ingress.yml
+    |-- monitoring/
+    |-- overlays/
+    `-- tls/
+```
 
----
+## Local Development
 
-## ⚙️ Setup & Deployment
+```bash
+cd devflowci
+pip install -r requirements.txt
+python src/app.py
+```
 
-### 1️⃣ Clone Repository
+Open `http://localhost:5000`.
 
-git clone https://github.com/<your-username>/devflow.git
+## Run Tests
 
----
+```bash
+cd devflowci
+python -m pytest
+```
 
-### 2️⃣ Build Docker Image
+## Build Docker Image
 
-docker build -t <your-username>/devflow-app .
+```bash
+cd devflowci
+docker build -t nithya200x/devflow-app:latest .
+```
 
----
+## Deploy to Kubernetes
 
-### 3️⃣ Push to Docker Hub
+```bash
+kubectl apply -k devflowcd/overlays/dev
+```
 
-docker push <your-username>/devflow-app
+The NodePort service exposes the app on port `30007`.
 
----
+For production, update `devflowcd/overlays/prod/kustomization.yml` and `devflowcd/tls/certificate.yml` with your real host name, then run:
 
-### 4️⃣ Deploy to Kubernetes
+```bash
+kubectl apply -k devflowcd/overlays/prod
+```
 
-kubectl apply -f devflowcd/deployment.yml -n devflow
-kubectl apply -f devflowcd/service.yml -n devflow
+## Jenkins Requirements
 
----
+Create these Jenkins credentials before running the pipeline:
 
-## 📊 Kubernetes Resources
+- `dockerhub-credentials`: Docker Hub username/password credential.
+- `kubeconfig`: file credential containing a kubeconfig with deploy access.
+- `cosign-private-key`: optional Cosign private key file credential.
+- `cosign-password`: optional Cosign password secret text credential.
 
-- Deployment: devflow-deployment
-- Service: devflow-service
-- Namespace: devflow
+The Jenkins agent must have `docker`, `kubectl`, `trivy`, and `cosign` installed. The pipeline builds and pushes both `latest` and the Jenkins build-number tag, scans the image for high/critical vulnerabilities, optionally signs the image, then updates the Kubernetes deployment to the build-number tag.
 
----
+## Production Values To Replace
 
-## 🎯 Outcomes
-
-- Reduced manual deployment effort
-- Faster release cycles
-- Improved scalability and reliability
-- End-to-end DevOps automation
-
----
-
-## 🚀 Future Enhancements
-
-- GitHub webhook-based auto trigger
-- Ingress for domain-based routing
-- Monitoring with Prometheus & Grafana
-- Multi-environment deployment (Dev/Staging/Prod)
-
----
-
-## 👩‍💻 Author
-
-Nithya Priya S
-
----
-
-## ⭐ Conclusion
-
-DevFlow demonstrates a real-world DevOps pipeline by integrating CI/CD, containerization, and Kubernetes orchestration into a unified automated system, improving efficiency and deployment reliability in cloud-native environments.
+- Replace `devflow.example.com` with your real DNS name.
+- Replace `devops@example.com` in `devflowcd/tls/cluster-issuer.example.yml`.
+- Install cert-manager before applying the production certificate manifest.
+- Install Prometheus Operator and Grafana sidecar dashboard loading before applying `devflowcd/monitoring`.
+- Set Jenkins parameters for the target image repository, namespace, and Kustomize overlay.
+- Enable image signing after Cosign credentials are created in Jenkins.

@@ -1,25 +1,50 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Pod Details</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        p {
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <h1>Pod Details</h1>
-    <p><strong>Hostname:</strong> {{ hostname }}</p>
-    <p><strong>MAC Address:</strong> {{ mac }}</p>
-    <p><strong>IP Address:</strong> {{ ip }}</p>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }} Runtime</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="shell compact">
+      <nav class="topbar">
+        <a href="/">DevFlow</a>
+        <span>Runtime details</span>
+      </nav>
+
+      <section class="details-panel">
+        <div>
+          <p class="eyebrow">Current workload</p>
+          <h1>Pod Details</h1>
+        </div>
+        <dl class="details-list">
+          <div>
+            <dt>Hostname</dt>
+            <dd>{{ details.hostname }}</dd>
+          </div>
+          <div>
+            <dt>IP Address</dt>
+            <dd>{{ details.ip }}</dd>
+          </div>
+          <div>
+            <dt>MAC Address</dt>
+            <dd>{{ details.mac }}</dd>
+          </div>
+          <div>
+            <dt>Node</dt>
+            <dd>{{ details.node }}</dd>
+          </div>
+          <div>
+            <dt>Namespace</dt>
+            <dd>{{ details.namespace }}</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd>{{ details.version }}</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+  </body>
 </html>

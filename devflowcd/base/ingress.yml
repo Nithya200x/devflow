@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devflow-ingress
+  namespace: devflow
+  labels:
+    app.kubernetes.io/name: devflow
+    app.kubernetes.io/component: web
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devflow.local
+      secretName: devflow-tls
+  rules:
+    - host: devflow.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devflow-service
+                port:
+                  number: 80

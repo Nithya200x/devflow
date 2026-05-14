@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: devflow-prod
+resources:
+  - ../../base
+  - ../../tls
+  - ../../monitoring
+images:
+  - name: nithya200x/devflow-app
+    newName: nithya200x/devflow-app
+    newTag: latest
+patches:
+  - target:
+      kind: Namespace
+      name: devflow
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: devflow-prod
+  - target:
+      kind: Ingress
+      name: devflow-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: devflow.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: devflow.example.com
+  - target:
+      kind: Certificate
+      name: devflow-tls
+    patch: |-
+      - op: replace
+        path: /spec/dnsNames/0
+        value: devflow.example.com

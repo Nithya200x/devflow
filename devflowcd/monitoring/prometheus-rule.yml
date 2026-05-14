@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: devflow-alerts
+  namespace: devflow-prod
+  labels:
+    app.kubernetes.io/name: devflow
+    release: prometheus
+spec:
+  groups:
+    - name: devflow.rules
+      rules:
+        - alert: DevFlowTargetDown
+          expr: up{job=~".*devflow.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: DevFlow health endpoint is down
+            description: Prometheus has not been able to scrape DevFlow for more than 2 minutes.
+        - alert: DevFlowHighRestartCount
+          expr: increase(kube_pod_container_status_restarts_total{namespace="devflow-prod", container="devflow-app"}[10m]) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: DevFlow pods are restarting frequently
+            description: DevFlow has restarted more than twice in the last 10 minutes.

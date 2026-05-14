@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: devflow
+  namespace: devflow-prod
+  labels:
+    app.kubernetes.io/name: devflow
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: devflow
+      app.kubernetes.io/component: web
+  namespaceSelector:
+    matchNames:
+      - devflow-prod
+  endpoints:
+    - port: http
+      path: /health
+      interval: 30s
