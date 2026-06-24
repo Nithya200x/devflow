@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - devflow_db:/database
+    environment:
+      - FLASK_ENV=production
+      - JWT_SECRET_KEY=devflow-super-secret-key-change-in-prod
+    networks:
+      - devflow_net
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - devflow_net
+
+volumes:
+  devflow_db:
+
+networks:
+  devflow_net:
