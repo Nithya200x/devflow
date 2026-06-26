@@ -1,153 +1,238 @@
-# DevFlow: Internal Developer Platform
+# DevFlow: Cloud-Native Microservices-based DevOps Automation and Issue Orchestration Platform
 
-**DevFlow** is a full-stack Internal Developer Platform (IDP) with **GitHub integration** and a built-in **orchestration engine**. It provides repository management, CI/CD pipeline orchestration, cluster monitoring, and incident management through a modern React dashboard and Flask REST API.
+**DevFlow** is a modern, full-stack Internal Developer Platform (IDP) that showcases platform engineering, observability, and infrastructure automation patterns. It features JWT-authenticated project management, CI/CD orchestration, cluster monitoring, and incident management.
 
 ---
 
 ## Features
 
-### GitHub Integration
-- **Repository-linked Projects** – Each project is tied to a GitHub repository URL for end-to-end traceability
-- **Deployment Pipeline** – Trigger deployments per repository to Dev, Staging, or Production environments
-- **Rollback Support** – One-click rollback of any previously successful deployment
-
-### Orchestration Engine
-- **Stateful Pipeline Lifecycle** – Deployments transition through `running` -> `success` / `failed` states with 30-second auto-completion
-- **Cluster Telemetry** – CPU/memory metrics spike dynamically during active deployments to simulate real container startup load
-- **Live Log Streaming** – Context-aware terminal logs reflect deployment activity vs baseline cluster health
-
-### Platform Management
-- **Incident Tracking** – Create, investigate, and resolve incidents with severity levels
-- **RBAC** – JWT-authenticated admin/developer roles with protected API routes
-- **Auto-seeded Mock Data** – Pre-populated users, projects, deployments, clusters, and incidents on first run
-
-### UI/UX
-- **Glassmorphic Design** – Dark-mode SPA with backdrop blur, fluid animations, and responsive layout
-- **Real-time Dashboard** – Recharts-based CPU/Memory area chart with 5-second polling on cluster views
+- **JWT Authentication** with auto-logout and 401 redirect
+- **Project Management** for connected repositories
+- **Deployments & Rollbacks** with simulated CI/CD pipelines
+- **Cluster Monitoring** with real-time CPU/Memory metrics and live logs
+- **Incident Management** with severity tracking and resolution
+- **Dashboard** with aggregated platform metrics and resource charts
+- **Glassmorphic UI** with dark theme and fluid animations
 
 ---
 
 ## Technology Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React 19, Vite 8, React Router 7, Recharts, Lucide React Icons |
-| Backend | Python 3.10, Flask 2.3, SQLAlchemy 2.0, Alembic |
-| Database | SQLite (persistent volume in Docker) |
-| Auth | Flask-JWT-Extended (Bearer tokens), bcrypt password hashing |
-| DevOps | Docker Compose, Jenkins (Jenkinsfile included), Kubernetes manifests (`devflowcd/`) |
+### Frontend
+- **Framework:** React 19 (Vite)
+- **Routing:** React Router DOM v7
+- **Charts:** Recharts
+- **Icons:** React Icons (Feather)
+- **Styling:** Vanilla CSS with CSS Variables
 
----
+### Backend
+- **Framework:** Python 3.11 / Flask 2.3
+- **Database:** SQLite (SQLAlchemy ORM)
+- **Migrations:** Alembic (Flask-Migrate)
+- **Authentication:** Flask-JWT-Extended
+- **Server:** Gunicorn
 
-## Architecture
-
-```
-┌──────────┐       ┌──────────────────┐       ┌──────────┐
-│  Browser │──────>│  Flask REST API   │──────>│ SQLite   │
-│  :5173   │<──────│  :5000/api/v1/   │<──────│ app.db   │
-└──────────┘       └──────────────────┘       └──────────┘
-                          │
-                    ┌─────┴──────┐
-                    │ GitHub     │
-                    │ Repos      │
-                    └────────────┘
-```
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/login` | JWT login (admin/dev) |
-| GET | `/api/v1/projects` | List all projects |
-| GET/POST | `/api/v1/deployments` | List / trigger deployments |
-| POST | `/api/v1/deployments/:id/rollback` | Rollback a deployment |
-| GET | `/api/v1/clusters` | Cluster list with live telemetry |
-| GET | `/api/v1/clusters/:id/logs` | Live cluster logs |
-| GET/POST | `/api/v1/incidents` | List / create incidents |
-| PATCH | `/api/v1/incidents/:id` | Update incident status |
-
----
-
-## Getting Started
-
-### Docker (Recommended)
-
-```bash
-docker-compose up --build -d
-open http://localhost
-```
-
-### Local Development
-
-**Backend:**
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate    # Windows
-pip install -r requirements.txt
-$env:PYTHONPATH = "src"; python src/app.py
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## Credentials
-
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `admin123` | admin |
-| `developer` | `dev123` | developer |
+### Infrastructure
+- **Containerization:** Docker & Docker Compose
+- **CI/CD:** Jenkins Pipeline
+- **Orchestration:** Kubernetes Manifests
+- **Reverse Proxy:** Nginx
 
 ---
 
 ## Project Structure
 
 ```
+devflow-main/
 ├── backend/
 │   ├── src/
-│   │   ├── app.py          # Flask app factory & routes
-│   │   ├── api.py          # REST API blueprint
-│   │   ├── models.py       # SQLAlchemy models
-│   │   ├── templates/      # Server-rendered pages
-│   │   └── static/         # CSS assets
-│   ├── migrations/         # Alembic DB migrations
-│   ├── tests/              # Pytest suite
+│   │   ├── config/
+│   │   │   └── config.py              # Environment-based configuration
+│   │   ├── models/
+│   │   │   └── __init__.py            # User, Project, Cluster, Deployment, Incident
+│   │   ├── routes/
+│   │   │   ├── auth.py                # Login endpoint
+│   │   │   ├── projects.py            # Project CRUD
+│   │   │   ├── deployments.py         # Deploy & rollback
+│   │   │   ├── clusters.py            # Cluster metrics & logs
+│   │   │   ├── incidents.py           # Incident management
+│   │   │   └── health.py              # Health check
+│   │   ├── services/
+│   │   │   ├── auth_service.py        # Authentication business logic
+│   │   │   ├── project_service.py     # Project business logic
+│   │   │   ├── deployment_service.py  # Deployment & rollback logic
+│   │   │   ├── cluster_service.py     # Cluster metrics & logs
+│   │   │   └── incident_service.py    # Incident business logic
+│   │   ├── utils/
+│   │   │   ├── logging.py             # Logging configuration
+│   │   │   └── seed.py                # Mock data seeding
+│   │   ├── extensions.py              # Flask extension initialization
+│   │   ├── app.py                     # Application factory
+│   │   ├── static/
+│   │   └── templates/
+│   ├── migrations/                    # Alembic migrations
+│   ├── tests/
+│   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx        # React entry point
-│   │   ├── App.jsx         # Router & layout
-│   │   ├── components.jsx  # All UI components
-│   │   └── index.css       # Global styles
+│   │   ├── components/
+│   │   │   ├── Sidebar/               # Navigation sidebar
+│   │   │   ├── Navbar/                # Top navigation
+│   │   │   ├── Cards/                 # StatCard component
+│   │   │   ├── Charts/                # ResourceChart component
+│   │   │   ├── Tables/                # DataTable component
+│   │   │   ├── Terminal/              # LogViewer component
+│   │   │   └── Common/                # Loading, Error, EmptyState components
+│   │   ├── pages/
+│   │   │   ├── Dashboard/             # Platform overview with metrics
+│   │   │   ├── Projects/              # Project listing
+│   │   │   ├── Deployments/           # Deployment & rollback
+│   │   │   ├── Clusters/              # Cluster monitoring & logs
+│   │   │   ├── Incidents/             # Incident management
+│   │   │   └── Login/                 # Authentication
+│   │   ├── services/
+│   │   │   ├── api.js                 # Axios instance with interceptors
+│   │   │   ├── authService.js         # Login API
+│   │   │   ├── projectService.js      # Projects API
+│   │   │   ├── deploymentService.js   # Deployments API
+│   │   │   ├── clusterService.js      # Clusters API
+│   │   │   └── incidentService.js     # Incidents API
+│   │   ├── hooks/
+│   │   │   ├── useAuth.js             # Auth context hook
+│   │   │   └── usePolling.js          # Generic polling hook
+│   │   ├── contexts/
+│   │   │   └── AuthContext.jsx        # Auth provider with JWT management
+│   │   ├── layouts/
+│   │   │   └── AppLayout.jsx          # Protected layout with sidebar
+│   │   ├── utils/
+│   │   │   ├── constants.js           # Route paths, status constants
+│   │   │   └── helpers.js             # Formatting utilities
+│   │   ├── config/
+│   │   │   └── config.js              # Frontend configuration
+│   │   ├── styles/                    # Additional styles
+│   │   ├── App.jsx                    # Root with routing
+│   │   ├── App.css
+│   │   ├── main.jsx                   # Entry point
+│   │   └── index.css                  # Global styles
+│   ├── public/
+│   ├── .env.example
+   ├── Dockerfile
 │   └── package.json
-├── devflowcd/              # Kubernetes manifests
-├── database/               # SQLite data (Docker volume)
+├── database/                          # SQLite database (auto-created)
+├── devflowcd/                         # CI/CD configuration
 ├── docker-compose.yml
-└── Jenkinsfile
+├── Jenkinsfile
+└── README.md
 ```
 
 ---
 
-## CI/CD Pipeline (Jenkins)
+## Getting Started
 
-The included `Jenkinsfile` defines a multi-stage pipeline:
+### Option 1: Docker (Recommended)
 
-1. **Test** – Run backend pytest suite
-2. **Build** – Build Docker images for backend & frontend
-3. **Push** – Push images to registry
-4. **Deploy** – Apply `devflowcd/kustomization.yml` to Kubernetes
+```bash
+docker-compose up --build -d
+```
+
+Open **http://localhost** in your browser.
+
+### Option 2: Run Locally (Development)
+
+**1. Backend**
+
+```bash
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate      # Windows
+pip install -r requirements.txt
+flask db upgrade
+python src/app.py
+```
+
+The API will listen on `http://localhost:5000`.
+
+**2. Frontend**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The UI will listen on `http://localhost:5173`.
 
 ---
 
-## Roadmap
+## Environment Variables
 
-- [ ] Real Kubernetes client integration for live cluster management
-- [ ] GitHub Webhook receiver for automated deployment triggers
-- [ ] PostgreSQL support for production-scale deployments
-- [ ] WebSocket-based log streaming (replace HTTP polling)
+### Backend (`backend/.env`)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FLASK_DEBUG` | `false` | Enable debug mode |
+| `PORT` | `5000` | Server port |
+| `JWT_SECRET_KEY` | *(change in prod)* | JWT signing secret |
+| `JWT_EXPIRY_HOURS` | `24` | Token expiration |
+| `DATABASE_URL` | `sqlite:///../database/app.db` | Database connection string |
+
+### Future Integration Variables (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | GitHub Personal Access Token |
+| `JENKINS_URL` | Jenkins server URL |
+| `KUBE_CONFIG_PATH` | Kubernetes config file path |
+| `PROMETHEUS_URL` | Prometheus endpoint |
+| `GRAFANA_URL` / `GRAFANA_API_KEY` | Grafana credentials |
+| `JIRA_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` | Jira credentials |
+| `SLACK_WEBHOOK_URL` | Slack notification webhook |
+| `SMTP_*` | Email notification credentials |
+| `OPENAI_API_KEY` | AI feature API key |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | `http://localhost:5000/api/v1` | Backend API URL |
+
+---
+
+## Demo Credentials
+
+- **Username:** `admin`
+- **Password:** `admin123`
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/login` | Authenticate user |
+| GET | `/api/v1/projects` | List projects |
+| GET | `/api/v1/deployments` | List deployments |
+| POST | `/api/v1/deployments` | Trigger deployment |
+| POST | `/api/v1/deployments/:id/rollback` | Rollback deployment |
+| GET | `/api/v1/clusters` | List clusters with metrics |
+| GET | `/api/v1/clusters/:id/logs` | Get cluster logs |
+| GET | `/api/v1/incidents` | List incidents |
+| POST | `/api/v1/incidents` | Create incident |
+| PATCH | `/api/v1/incidents/:id` | Update incident status |
+| GET | `/health` | Health check |
+
+---
+
+## Testing
+
+```bash
+cd backend
+pytest tests/
+```
+
+Frontend lint:
+```bash
+cd frontend
+npm run lint
+```

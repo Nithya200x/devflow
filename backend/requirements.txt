@@ -6,3 +6,5 @@ Flask-JWT-Extended==4.6.0
 Flask-CORS==4.0.0
 bcrypt==4.1.2
 Flask-Migrate==4.0.5
+cryptography==42.0.5
+requests==2.31.0

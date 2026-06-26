@@ -1,88 +1,37 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { 
   FiLayout, FiBox, FiServer, FiAlertTriangle, FiLogOut, 
   FiPlay, FiRotateCcw, FiCheckCircle, FiXCircle, FiActivity,
-  FiTerminal, FiCpu, FiHardDrive, FiLayers, FiShield,
-  FiRefreshCw, FiInbox
+  FiTerminal, FiCpu, FiHardDrive, FiLayers, FiShield
 } from 'react-icons/fi';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_URL = 'http://localhost:5000/api/v1';
 
+// Setup Axios Interceptor for Auth
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-function SkeletonBlock({ width, height }) {
-  return (
-    <div className="skeleton" style={{ width: width || '100%', height: height || '20px' }} />
-  );
-}
-
-function EmptyState({ icon, title, message }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)', gap: '0.75rem' }}>
-      <div style={{ fontSize: '2.5rem', opacity: 0.4 }}>{icon}</div>
-      <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{title}</h3>
-      <p style={{ margin: 0, fontSize: '0.9rem' }}>{message}</p>
-    </div>
-  );
-}
-
-function ErrorState({ message, onRetry }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', gap: '1rem' }}>
-      <div style={{ fontSize: '2rem', color: 'var(--danger-color)' }}><FiXCircle /></div>
-      <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{message}</p>
-      {onRetry && (
-        <button className="btn" onClick={onRetry} style={{ gap: '0.5rem' }}>
-          <FiRefreshCw size={16} /> Retry
-        </button>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const icons = {
-    success: <FiCheckCircle size={14} />,
-    failed: <FiXCircle size={14} />,
-    running: <FiActivity size={14} className="spin" />,
-    investigating: <FiActivity size={14} />,
-    resolved: <FiCheckCircle size={14} />,
-  };
-  return (
-    <span className={`badge ${status}`}>
-      {icons[status]}
-      {status}
-    </span>
-  );
-}
-
 export const Login = () => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { username, password });
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
-    } catch {
+    } catch (err) {
       setError('Invalid credentials');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -99,14 +48,14 @@ export const Login = () => {
         <form onSubmit={handleLogin}>
           <div className="input-group">
             <label>Username</label>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} disabled={loading} />
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} />
           </div>
           <div className="input-group">
             <label>Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} disabled={loading} />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In to Console'}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+            Sign In to Console
           </button>
         </form>
       </div>
@@ -145,7 +94,7 @@ export const Sidebar = () => {
           <span className="user-name">{user.username}</span>
           <span className="user-role"><FiShield style={{display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom'}}/>{user.role}</span>
         </div>
-        <button onClick={handleLogout} className="logout-btn" title="Logout">
+        <button onClick={handleLogout} style={{background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginLeft: 'auto', padding: '0.5rem'}}>
           <FiLogOut size={18} />
         </button>
       </div>
@@ -164,7 +113,7 @@ export const Dashboard = () => {
   ];
 
   return (
-    <div className="fade-in">
+    <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Platform Overview</h1>
@@ -230,20 +179,13 @@ export const Dashboard = () => {
 
 export const Projects = () => {
   const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    axios.get(`${API_URL}/projects`)
-      .then(res => { if (!cancelled) setProjects(res.data); })
-      .catch(err => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    axios.get(`${API_URL}/projects`).then(res => setProjects(res.data));
   }, []);
 
   return (
-    <div className="fade-in">
+    <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Projects</h1>
@@ -251,44 +193,30 @@ export const Projects = () => {
         </div>
       </div>
       <div className="table-container glass-panel" style={{ padding: '0.5rem 1rem 1rem' }}>
-        {loading ? (
-          <div style={{ padding: '1rem' }}>
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-          </div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => window.location.reload()} />
-        ) : projects.length === 0 ? (
-          <EmptyState icon={<FiInbox />} title="No projects yet" message="Connect a repository to get started." />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Repository</th>
-                <th>Description</th>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Repository</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {projects.map(p => (
+              <tr key={p.id}>
+                <td style={{ color: 'var(--text-secondary)' }}>#{p.id}</td>
+                <td><strong>{p.name}</strong></td>
+                <td>
+                  <a href={p.repository_url} target="_blank" rel="noreferrer" style={{color: 'var(--accent-color)', textDecoration: 'none'}}>
+                    {p.repository_url}
+                  </a>
+                </td>
+                <td style={{ color: 'var(--text-secondary)' }}>{p.description}</td>
               </tr>
-            </thead>
-            <tbody>
-              {projects.map(p => (
-                <tr key={p.id}>
-                  <td style={{ color: 'var(--text-secondary)' }}>#{p.id}</td>
-                  <td><strong>{p.name}</strong></td>
-                  <td>
-                    <a href={p.repository_url} target="_blank" rel="noreferrer" className="repo-link">
-                      {p.repository_url}
-                    </a>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{p.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -296,47 +224,27 @@ export const Projects = () => {
 
 export const Deployments = () => {
   const [deployments, setDeployments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    axios.get(`${API_URL}/deployments`)
-      .then(res => { if (!cancelled) setDeployments(res.data); })
-      .catch(err => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    fetchDeployments();
   }, []);
 
   const fetchDeployments = () => {
-    setLoading(true);
-    setError(null);
-    axios.get(`${API_URL}/deployments`)
-      .then(res => setDeployments(res.data))
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    axios.get(`${API_URL}/deployments`).then(res => setDeployments(res.data));
   };
 
   const triggerDeploy = async (projectId) => {
-    try {
-      await axios.post(`${API_URL}/deployments`, { project_id: projectId, environment: 'prod' });
-      fetchDeployments();
-    } catch (err) {
-      setError(err.message);
-    }
+    await axios.post(`${API_URL}/deployments`, { project_id: projectId, environment: 'prod' });
+    fetchDeployments();
   };
 
   const rollbackDeploy = async (deployId) => {
-    try {
-      await axios.post(`${API_URL}/deployments/${deployId}/rollback`);
-      fetchDeployments();
-    } catch (err) {
-      setError(err.message);
-    }
+    await axios.post(`${API_URL}/deployments/${deployId}/rollback`);
+    fetchDeployments();
   };
 
   return (
-    <div className="fade-in">
+    <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Deployments</h1>
@@ -348,50 +256,43 @@ export const Deployments = () => {
       </div>
       
       <div className="table-container glass-panel" style={{ padding: '0.5rem 1rem 1rem' }}>
-        {loading ? (
-          <div style={{ padding: '1rem' }}>
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-          </div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={fetchDeployments} />
-        ) : deployments.length === 0 ? (
-          <EmptyState icon={<FiPlay />} title="No deployments" message="Trigger a deployment to see it here." />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Project</th>
-                <th>Env</th>
-                <th>Status</th>
-                <th>Deployed By</th>
-                <th>Actions</th>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Project</th>
+              <th>Env</th>
+              <th>Status</th>
+              <th>Deployed By</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deployments.map(d => (
+              <tr key={d.id}>
+                <td style={{ color: 'var(--text-secondary)' }}>#{d.id}</td>
+                <td><strong>Project {d.project_id}</strong></td>
+                <td><span className="badge neutral">{d.environment}</span></td>
+                <td>
+                  <span className={`badge ${d.status}`}>
+                    {d.status === 'success' && <FiCheckCircle size={14} />}
+                    {d.status === 'failed' && <FiXCircle size={14} />}
+                    {d.status === 'running' && <FiActivity size={14} />}
+                    {d.status}
+                  </span>
+                </td>
+                <td style={{ color: 'var(--text-secondary)' }}>{d.deployed_by}</td>
+                <td>
+                  {d.status === 'success' && (
+                    <button className="btn btn-danger" style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem'}} onClick={() => rollbackDeploy(d.id)}>
+                      <FiRotateCcw size={14} /> Rollback
+                    </button>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {deployments.map(d => (
-                <tr key={d.id}>
-                  <td style={{ color: 'var(--text-secondary)' }}>#{d.id}</td>
-                  <td><strong>Project {d.project_id}</strong></td>
-                  <td><span className="badge neutral">{d.environment}</span></td>
-                  <td><StatusBadge status={d.status} /></td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{d.deployed_by}</td>
-                  <td>
-                    {d.status === 'success' && (
-                      <button className="btn btn-danger" style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem'}} onClick={() => rollbackDeploy(d.id)}>
-                        <FiRotateCcw size={14} /> Rollback
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -401,34 +302,27 @@ export const Clusters = () => {
   const [clusters, setClusters] = useState([]);
   const [logs, setLogs] = useState([]);
   const [selectedCluster, setSelectedCluster] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    axios.get(`${API_URL}/clusters`)
-      .then(res => { if (!cancelled) setClusters(res.data); })
-      .catch(err => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-
+    axios.get(`${API_URL}/clusters`).then(res => setClusters(res.data));
     const interval = setInterval(() => {
       axios.get(`${API_URL}/clusters`).then(res => setClusters(res.data));
     }, 5000);
-    return () => { clearInterval(interval); };
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (!selectedCluster) return;
     const interval = setInterval(() => {
       axios.get(`${API_URL}/clusters/${selectedCluster}/logs`).then(res => {
-        setLogs(prev => [...prev, ...res.data.logs].slice(-30));
+        setLogs(prev => [...prev, ...res.data.logs].slice(-30)); // Keep last 30 logs
       });
     }, 3000);
-    return () => { clearInterval(interval); };
+    return () => clearInterval(interval);
   }, [selectedCluster]);
 
   return (
-    <div className="fade-in">
+    <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Clusters</h1>
@@ -436,91 +330,83 @@ export const Clusters = () => {
         </div>
       </div>
 
-      {loading ? (
-        <div className="grid-cards" style={{ marginBottom: '2.5rem' }}>
-          <div className="glass-panel"><SkeletonBlock height="200px" /></div>
-          <div className="glass-panel"><SkeletonBlock height="200px" /></div>
-        </div>
-      ) : error ? (
-        <ErrorState message={error} onRetry={() => window.location.reload()} />
-      ) : clusters.length === 0 ? (
-        <EmptyState icon={<FiServer />} title="No clusters" message="No clusters are currently configured." />
-      ) : (
-        <>
-          <div className="grid-cards" style={{ marginBottom: '2.5rem' }}>
-            {clusters.map(c => (
-              <div 
-                key={c.id} 
-                className={`glass-panel cluster-card ${selectedCluster === c.id ? 'selected' : ''}`}
-                onClick={() => setSelectedCluster(c.id)}
-              >
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem'}}>
-                  <div>
-                    <h3 style={{ margin: 0, color: '#fff' }}>{c.name}</h3>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ID: #{c.id}</span>
-                  </div>
-                  <StatusBadge status={c.status} />
-                </div>
-                
-                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Nodes</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.node_count}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pods</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.pod_count}</div>
-                  </div>
-                </div>
-
-                <div className="progress-container">
-                  <div className="progress-header">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiCpu /> CPU Usage</span>
-                    <span style={{ color: c.cpu_percent > 80 ? 'var(--danger-color)' : '#fff' }}>{c.cpu_percent}%</span>
-                  </div>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ 
-                      width: `${c.cpu_percent}%`, 
-                      background: c.cpu_percent > 80 ? 'var(--danger-color)' : 'var(--accent-color)'
-                    }} />
-                  </div>
-                </div>
-
-                <div className="progress-container">
-                  <div className="progress-header">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiHardDrive /> Memory</span>
-                    <span style={{ color: c.mem_percent > 80 ? 'var(--warning-color)' : '#fff' }}>{c.mem_percent}%</span>
-                  </div>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ 
-                      width: `${c.mem_percent}%`, 
-                      background: c.mem_percent > 80 ? 'var(--warning-color)' : 'var(--success-color)' 
-                    }} />
-                  </div>
-                </div>
+      <div className="grid-cards" style={{ marginBottom: '2.5rem' }}>
+        {clusters.map(c => (
+          <div 
+            key={c.id} 
+            className="glass-panel" 
+            style={{ 
+              cursor: 'pointer', 
+              borderColor: selectedCluster === c.id ? 'rgba(59, 130, 246, 0.5)' : '',
+              boxShadow: selectedCluster === c.id ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : ''
+            }} 
+            onClick={() => setSelectedCluster(c.id)}
+          >
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem'}}>
+              <div>
+                <h3 style={{ margin: 0, color: '#fff' }}>{c.name}</h3>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ID: #{c.id}</span>
               </div>
-            ))}
-          </div>
-
-          {selectedCluster && (
-            <div className="glass-panel fade-in" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '1.25rem 1.5rem', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FiTerminal /> <h3 style={{ margin: 0 }}>Live Logs: {clusters.find(c => c.id === selectedCluster)?.name}</h3>
+              <span className={`badge ${c.status}`}>{c.status}</span>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Nodes</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.node_count}</div>
               </div>
-              <div className="terminal-window" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
-                {logs.length === 0 ? (
-                  <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Waiting for logs...</div>
-                ) : (
-                  logs.map((log, i) => (
-                    <div key={i} className={`terminal-line ${log.includes('[ERROR]') ? 'terminal-error' : log.includes('[WARN]') ? 'terminal-warn' : 'terminal-info'}`}>
-                      <span style={{ color: '#64748b' }}>[{new Date().toLocaleTimeString()}]</span> {log}
-                    </div>
-                  ))
-                )}
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pods</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.pod_count}</div>
               </div>
             </div>
-          )}
-        </>
+
+            <div className="progress-container">
+              <div className="progress-header">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiCpu /> CPU Usage</span>
+                <span style={{ color: c.cpu_percent > 80 ? 'var(--danger-color)' : '#fff' }}>{c.cpu_percent}%</span>
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ 
+                  width: `${c.cpu_percent}%`, 
+                  background: c.cpu_percent > 80 ? 'var(--danger-color)' : 'var(--accent-color)'
+                }}></div>
+              </div>
+            </div>
+
+            <div className="progress-container">
+              <div className="progress-header">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiHardDrive /> Memory</span>
+                <span style={{ color: c.mem_percent > 80 ? 'var(--warning-color)' : '#fff' }}>{c.mem_percent}%</span>
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ 
+                  width: `${c.mem_percent}%`, 
+                  background: c.mem_percent > 80 ? 'var(--warning-color)' : 'var(--success-color)' 
+                }}></div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedCluster && (
+        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '1.25rem 1.5rem', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiTerminal /> <h3 style={{ margin: 0 }}>Live Logs: {clusters.find(c => c.id === selectedCluster)?.name}</h3>
+          </div>
+          <div className="terminal-window" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+            {logs.length === 0 ? (
+              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Waiting for logs...</div>
+            ) : (
+              logs.map((log, i) => (
+                <div key={i} className={`terminal-line ${log.includes('[ERROR]') ? 'terminal-error' : log.includes('[WARN]') ? 'terminal-warn' : 'terminal-info'}`}>
+                  <span style={{ color: '#64748b' }}>[{new Date().toLocaleTimeString()}]</span> {log}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -528,37 +414,22 @@ export const Clusters = () => {
 
 export const Incidents = () => {
   const [incidents, setIncidents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    axios.get(`${API_URL}/incidents`)
-      .then(res => { if (!cancelled) setIncidents(res.data); })
-      .catch(err => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    fetchIncidents();
   }, []);
 
   const fetchIncidents = () => {
-    setLoading(true);
-    axios.get(`${API_URL}/incidents`)
-      .then(res => setIncidents(res.data))
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    axios.get(`${API_URL}/incidents`).then(res => setIncidents(res.data));
   };
 
   const resolveIncident = async (id) => {
-    try {
-      await axios.patch(`${API_URL}/incidents/${id}`, { status: 'resolved' });
-      fetchIncidents();
-    } catch (err) {
-      setError(err.message);
-    }
+    await axios.patch(`${API_URL}/incidents/${id}`, { status: 'resolved' });
+    fetchIncidents();
   };
 
   return (
-    <div className="fade-in">
+    <div>
       <div className="page-header">
         <div>
           <h1 className="page-title">Incidents</h1>
@@ -566,50 +437,36 @@ export const Incidents = () => {
         </div>
       </div>
       <div className="table-container glass-panel" style={{ padding: '0.5rem 1rem 1rem' }}>
-        {loading ? (
-          <div style={{ padding: '1rem' }}>
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-            <div style={{ height: '1rem' }} />
-            <SkeletonBlock height="24px" />
-          </div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={fetchIncidents} />
-        ) : incidents.length === 0 ? (
-          <EmptyState icon={<FiAlertTriangle />} title="No incidents" message="All clear — no active incidents." />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Severity</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Severity</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {incidents.map(i => (
+              <tr key={i.id}>
+                <td style={{ color: 'var(--text-secondary)' }}>#{i.id}</td>
+                <td><strong>{i.title}</strong></td>
+                <td><span className={`badge ${i.severity}`}>{i.severity}</span></td>
+                <td><span className={`badge ${i.status}`}>{i.status}</span></td>
+                <td style={{ color: 'var(--text-secondary)' }}>{new Date(i.created_at).toLocaleString()}</td>
+                <td>
+                  {i.status !== 'resolved' && (
+                    <button className="btn btn-success" style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem'}} onClick={() => resolveIncident(i.id)}>
+                      <FiCheckCircle size={14} /> Resolve
+                    </button>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {incidents.map(i => (
-                <tr key={i.id}>
-                  <td style={{ color: 'var(--text-secondary)' }}>#{i.id}</td>
-                  <td><strong>{i.title}</strong></td>
-                  <td><span className={`badge ${i.severity}`}>{i.severity}</span></td>
-                  <td><StatusBadge status={i.status} /></td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{new Date(i.created_at).toLocaleString()}</td>
-                  <td>
-                    {i.status !== 'resolved' && (
-                      <button className="btn btn-success" style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem'}} onClick={() => resolveIncident(i.id)}>
-                        <FiCheckCircle size={14} /> Resolve
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

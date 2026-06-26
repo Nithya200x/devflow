@@ -1,121 +1,94 @@
 import os
-import socket
-from uuid import getnode as get_mac
-from flask import Flask, jsonify, render_template
+from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate
-from models import db, User, Project, Cluster, Incident, Deployment
-from api import api_bp
+from config.config import Config
+from extensions import db, migrate, jwt
+from routes.auth import auth_bp
+from routes.projects import projects_bp
+from routes.deployments import deployments_bp
+from routes.clusters import clusters_bp
+from routes.incidents import incidents_bp
+from routes.github import github_bp
+from routes.orchestration import orchestration_bp
+from routes.health import register_health_routes
+from utils.seed import seed_data
+from utils.logging import setup_logging
+from orchestration import OrchestrationService
+from orchestration.collectors.github_collector import GitHubEvidenceCollector
+from orchestration.collectors.jenkins_collector import JenkinsEvidenceCollector
+from orchestration.collectors.docker_collector import DockerEvidenceCollector
+from orchestration.collectors.kubernetes_collector import KubernetesEvidenceCollector
+from orchestration.collectors.prometheus_collector import PrometheusEvidenceCollector
+from orchestration.collectors.grafana_collector import GrafanaEvidenceCollector
 
-APP_NAME = os.getenv("APP_NAME", "DevFlow SaaS")
-APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
+logger = setup_logging()
 
-# Database goes in the "database" folder at the root of the project
-basedir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-database_dir = os.path.join(basedir, 'database')
-# Ensure database directory exists
-os.makedirs(database_dir, exist_ok=True)
-db_path = os.path.join(database_dir, 'app.db')
+orchestration_service = OrchestrationService()
+
+
+def _init_orchestration(app):
+    try:
+        from routes.orchestration import _service as os_service
+
+        os_service.collector_registry.register("github", GitHubEvidenceCollector())
+        os_service.collector_registry.register("jenkins", JenkinsEvidenceCollector())
+        os_service.collector_registry.register("docker", DockerEvidenceCollector())
+        os_service.collector_registry.register(
+            "kubernetes", KubernetesEvidenceCollector()
+        )
+        os_service.collector_registry.register(
+            "prometheus", PrometheusEvidenceCollector()
+        )
+        os_service.collector_registry.register("grafana", GrafanaEvidenceCollector())
+
+        logger.info(
+            f"Orchestration engine initialized with "
+            f"{len(os_service.collector_registry.list_collectors())} collectors"
+        )
+    except Exception as e:
+        logger.warning(f"Orchestration init skipped: {e}")
+
 
 def create_app():
     app = Flask(__name__)
-    
-    # Configure Database and JWT
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = 'devflow-super-secret-key-change-in-prod'  # Change this in production
-    
-    # Initialize extensions
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
+    app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = Config.JWT_ACCESS_TOKEN_EXPIRES
+
     CORS(app)
     db.init_app(app)
-    migrate = Migrate(app, db)
-    jwt = JWTManager(app)
-    
-    # Register blueprints
-    app.register_blueprint(api_bp, url_prefix='/api/v1')
+    migrate.init_app(app, db)
+    jwt.init_app(app)
 
-    # Seed mock data if database exists and is empty
-    # In a real app with migrations, seeding usually happens in a separate script or migration step.
-    # We will keep this for convenience but only run if users table exists and is empty.
+    app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
+    app.register_blueprint(projects_bp, url_prefix='/api/v1/projects')
+    app.register_blueprint(deployments_bp, url_prefix='/api/v1/deployments')
+    app.register_blueprint(clusters_bp, url_prefix='/api/v1/clusters')
+    app.register_blueprint(incidents_bp, url_prefix='/api/v1/incidents')
+    app.register_blueprint(github_bp, url_prefix='/api/v1/github')
+    app.register_blueprint(orchestration_bp, url_prefix='/api/v1/orchestration')
+
+    _init_orchestration(app)
+
+    register_health_routes(app)
+
     with app.app_context():
         try:
+            import models
             seed_data()
         except Exception as e:
-            # If the tables are not created yet (e.g. before `flask db upgrade`), it will throw an exception
-            pass
+            logger.warning(f"Seed data skipped: {e}")
 
-    @app.route("/")
-    def index():
-        details = {
-            "hostname": socket.gethostname(),
-            "namespace": os.getenv("KUBERNETES_NAMESPACE", "default"),
-            "version": APP_VERSION,
-        }
-        return render_template("index.html", app_name=APP_NAME, version=APP_VERSION, details=details)
-
-    @app.route("/details")
-    def details():
-        hostname = socket.gethostname()
-        details = {
-            "hostname": hostname,
-            "ip": socket.gethostbyname(hostname),
-            "mac": ":".join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2)),
-            "node": os.getenv("KUBERNETES_NODE_NAME", "localhost"),
-            "namespace": os.getenv("KUBERNETES_NAMESPACE", "default"),
-            "version": APP_VERSION,
-        }
-        return render_template("details.html", app_name=APP_NAME, details=details)
-
-    @app.route("/health")
-    def health():
-        return jsonify(
-            app=APP_NAME,
-            status="up",
-            version=APP_VERSION,
-        )
-
+    logger.info(f"{Config.APP_NAME} v{Config.APP_VERSION} started")
     return app
-
-def seed_data():
-    if User.query.first() is None:
-        # Create mock users
-        admin = User(username="admin", role="admin")
-        admin.set_password("admin123")
-        dev = User(username="developer", role="developer")
-        dev.set_password("dev123")
-        db.session.add_all([admin, dev])
-        
-        # Create mock projects
-        p1 = Project(name="Payment Gateway", repository_url="https://github.com/nithya200x/payment-gw", description="Core payment processing service")
-        p2 = Project(name="Auth Service", repository_url="https://github.com/nithya200x/auth-service", description="OAuth2 authentication service")
-        db.session.add_all([p1, p2])
-        db.session.commit() # commit to get project IDs
-        
-        # Create mock deployments
-        d1 = Deployment(project_id=p1.id, environment="prod", status="success", deployed_by="admin")
-        d2 = Deployment(project_id=p2.id, environment="staging", status="failed", deployed_by="developer")
-        d3 = Deployment(project_id=p1.id, environment="dev", status="running", deployed_by="admin")
-        db.session.add_all([d1, d2, d3])
-        
-        # Create mock clusters
-        c1 = Cluster(name="prod-cluster-east", status="active", node_count=5)
-        c2 = Cluster(name="dev-cluster", status="active", node_count=2)
-        db.session.add_all([c1, c2])
-        
-        # Create mock incidents
-        i1 = Incident(title="High API Latency", status="investigating", severity="high")
-        i2 = Incident(title="Database Backup Failed", status="open", severity="critical")
-        db.session.add_all([i1, i2])
-        
-        db.session.commit()
-        print("Mock data seeded successfully!")
 
 app = create_app()
 
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
-        port=int(os.getenv("PORT", "5000")),
-        debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
+        port=Config.PORT,
+        debug=Config.FLASK_DEBUG,
     )
