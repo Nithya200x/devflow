@@ -1,7 +1,7 @@
 import os
 import socket
 from uuid import getnode as get_mac
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -44,6 +44,28 @@ def create_app():
         except Exception as e:
             # If the tables are not created yet (e.g. before `flask db upgrade`), it will throw an exception
             pass
+
+    @app.route("/")
+    def index():
+        details = {
+            "hostname": socket.gethostname(),
+            "namespace": os.getenv("KUBERNETES_NAMESPACE", "default"),
+            "version": APP_VERSION,
+        }
+        return render_template("index.html", app_name=APP_NAME, version=APP_VERSION, details=details)
+
+    @app.route("/details")
+    def details():
+        hostname = socket.gethostname()
+        details = {
+            "hostname": hostname,
+            "ip": socket.gethostbyname(hostname),
+            "mac": ":".join(("%012X" % get_mac())[i:i+2] for i in range(0, 12, 2)),
+            "node": os.getenv("KUBERNETES_NODE_NAME", "localhost"),
+            "namespace": os.getenv("KUBERNETES_NAMESPACE", "default"),
+            "version": APP_VERSION,
+        }
+        return render_template("details.html", app_name=APP_NAME, details=details)
 
     @app.route("/health")
     def health():
