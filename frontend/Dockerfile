@@ -1,5 +1,5 @@
 # Stage 1: Build the React Application
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -23,16 +23,17 @@ FROM nginx:alpine
 # We just copy the built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy a custom nginx configuration to handle React Router and reverse proxy to the backend
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
-        try_files $$uri $$uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy a custom nginx configuration to handle React Router
+RUN printf '%s\n' \
+    'server {' \
+    '    listen 80;' \
+    '    server_name localhost;' \
+    '    location / {' \
+    '        root /usr/share/nginx/html;' \
+    '        index index.html index.htm;' \
+    '        try_files $uri $uri/ /index.html;' \
+    '    }' \
+    '}' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

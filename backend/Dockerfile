@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src \
     PORT=5000 \
     FLASK_APP=src/app.py
 
