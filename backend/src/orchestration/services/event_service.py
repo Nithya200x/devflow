@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import List, Optional
 
 from orchestration.events.event_types import (
     EventType,
@@ -10,32 +10,20 @@ logger = logging.getLogger(__name__)
 
 
 class EventService:
+    MAX_HISTORY_SIZE = 1000
+
     def __init__(self):
-        self._handlers: Dict[EventType, List[Callable]] = {}
         self._history: List[OrchestrationEvent] = []
 
-    def subscribe(self, event_type: EventType, handler: Callable):
-        if event_type not in self._handlers:
-            self._handlers[event_type] = []
-        self._handlers[event_type].append(handler)
-        logger.debug(f"Handler subscribed to {event_type.name}")
-
-    def unsubscribe(self, event_type: EventType, handler: Callable):
-        handlers = self._handlers.get(event_type, [])
-        if handler in handlers:
-            handlers.remove(handler)
-
     def dispatch(self, event: OrchestrationEvent):
+        if len(self._history) >= self.MAX_HISTORY_SIZE:
+            self._history.pop(0)
+            logger.warning(
+                "Event history at capacity (%d), discarding oldest event",
+                self.MAX_HISTORY_SIZE,
+            )
         self._history.append(event)
-        handlers = self._handlers.get(event.event_type, [])
-        for handler in handlers:
-            try:
-                handler(event)
-            except Exception as e:
-                logger.error(
-                    f"Handler failed for {event.event_type.name}: {e}"
-                )
-        logger.info(f"Event dispatched: {event.event_type.name} ({len(handlers)} handlers)")
+        logger.info(f"Event dispatched: {event.event_type.name}")
 
     def get_history(
         self,
@@ -49,6 +37,3 @@ class EventService:
         if source:
             results = [e for e in results if e.source == source]
         return results[-limit:]
-
-    def clear_history(self):
-        self._history.clear()

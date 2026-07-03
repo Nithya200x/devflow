@@ -1,7 +1,12 @@
 import os
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(dotenv_path)
+
 from flask import Flask
 from flask_cors import CORS
-from config.config import Config
+from config.config import Config, validate_environment
 from extensions import db, migrate, jwt
 from routes.auth import auth_bp
 from routes.projects import projects_bp
@@ -9,11 +14,16 @@ from routes.deployments import deployments_bp
 from routes.clusters import clusters_bp
 from routes.incidents import incidents_bp
 from routes.github import github_bp
+from routes.jenkins import jenkins_bp
+from routes.docker import docker_bp
+from routes.kubernetes import kubernetes_bp
 from routes.orchestration import orchestration_bp
+from routes.prometheus import prometheus_bp
+from routes.grafana import grafana_bp
+from routes.alertmanager import alertmanager_bp
 from routes.health import register_health_routes
 from utils.seed import seed_data
 from utils.logging import setup_logging
-from orchestration import OrchestrationService
 from orchestration.collectors.github_collector import GitHubEvidenceCollector
 from orchestration.collectors.jenkins_collector import JenkinsEvidenceCollector
 from orchestration.collectors.docker_collector import DockerEvidenceCollector
@@ -22,8 +32,6 @@ from orchestration.collectors.prometheus_collector import PrometheusEvidenceColl
 from orchestration.collectors.grafana_collector import GrafanaEvidenceCollector
 
 logger = setup_logging()
-
-orchestration_service = OrchestrationService()
 
 
 def _init_orchestration(app):
@@ -50,12 +58,22 @@ def _init_orchestration(app):
 
 
 def create_app():
+    validate_environment()
     app = Flask(__name__)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
     app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = Config.JWT_ACCESS_TOKEN_EXPIRES
+    app.config['AI_PROVIDER'] = Config.AI_PROVIDER
+    app.config['OPENAI_API_KEY'] = Config.OPENAI_API_KEY
+    app.config['OPENAI_API_BASE'] = Config.OPENAI_API_BASE
+    app.config['OPENAI_MODEL'] = Config.OPENAI_MODEL
+    app.config['OLLAMA_URL'] = Config.OLLAMA_URL
+    app.config['OLLAMA_MODEL'] = Config.OLLAMA_MODEL
+    app.config['GROQ_API_KEY'] = Config.GROQ_API_KEY
+    app.config['GROQ_MODEL'] = Config.GROQ_MODEL
+    app.config['AI_TIMEOUT'] = Config.AI_TIMEOUT
 
     CORS(app)
     db.init_app(app)
@@ -69,6 +87,12 @@ def create_app():
     app.register_blueprint(incidents_bp, url_prefix='/api/v1/incidents')
     app.register_blueprint(github_bp, url_prefix='/api/v1/github')
     app.register_blueprint(orchestration_bp, url_prefix='/api/v1/orchestration')
+    app.register_blueprint(jenkins_bp, url_prefix='/api/v1/jenkins')
+    app.register_blueprint(docker_bp, url_prefix='/api/v1/docker')
+    app.register_blueprint(kubernetes_bp, url_prefix='/api/v1/kubernetes')
+    app.register_blueprint(prometheus_bp, url_prefix='/api/v1/prometheus')
+    app.register_blueprint(grafana_bp, url_prefix='/api/v1/grafana')
+    app.register_blueprint(alertmanager_bp, url_prefix='/api/v1/alertmanager')
 
     _init_orchestration(app)
 

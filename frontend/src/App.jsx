@@ -22,6 +22,10 @@ import EvidenceViewer from './pages/EvidenceViewer';
 import TimelineViewer from './pages/TimelineViewer';
 import RootCauseAnalysis from './pages/RootCauseAnalysis';
 import Notifications from './pages/Notifications';
+import MonitoringDashboard from './pages/Monitoring';
+import PrometheusMetrics from './pages/Monitoring/Metrics';
+import GrafanaDashboards from './pages/Monitoring/Dashboards';
+import ActiveAlerts from './pages/Monitoring/Alerts';
 
 function App() {
   return (
@@ -41,6 +45,10 @@ function App() {
           <Route path="/orchestration/timeline/:incidentId" element={<AppLayout><TimelineViewer /></AppLayout>} />
           <Route path="/orchestration/root-cause" element={<AppLayout><RootCauseAnalysis /></AppLayout>} />
           <Route path="/orchestration/notifications" element={<AppLayout><Notifications /></AppLayout>} />
+          <Route path="/monitoring" element={<AppLayout><MonitoringDashboard /></AppLayout>} />
+          <Route path="/monitoring/metrics" element={<AppLayout><PrometheusMetrics /></AppLayout>} />
+          <Route path="/monitoring/dashboards" element={<AppLayout><GrafanaDashboards /></AppLayout>} />
+          <Route path="/monitoring/alerts" element={<AppLayout><ActiveAlerts /></AppLayout>} />
           <Route path="/github" element={<AppLayout><Github /></AppLayout>} />
           <Route path="/github/repos" element={<AppLayout><Repositories /></AppLayout>} />
           <Route path="/github/repos/:repoId" element={<AppLayout><RepositoryDetail /></AppLayout>} />

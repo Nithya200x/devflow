@@ -8,9 +8,19 @@ services:
       - "5000:5000"
     volumes:
       - devflow_db:/database
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - FLASK_ENV=production
       - JWT_SECRET_KEY=devflow-super-secret-key-change-in-prod
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - KUBECONFIG=
+      - PROMETHEUS_URL=
+      - PROMETHEUS_USERNAME=
+      - PROMETHEUS_PASSWORD=
+      - PROMETHEUS_TOKEN=
+      - GRAFANA_URL=
+      - GRAFANA_API_KEY=
+      - ALERTMANAGER_URL=
     networks:
       - devflow_net
 

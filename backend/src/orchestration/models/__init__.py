@@ -8,4 +8,5 @@ from orchestration.models.event_store import (
     EventStore,
     IncidentEvidenceStore,
     IncidentTimelineStore,
+    AIAnalysisStore,
 )

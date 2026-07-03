@@ -2,6 +2,45 @@ import os
 import logging
 from datetime import timedelta
 
+logger = logging.getLogger(__name__)
+
+
+def validate_environment():
+    warnings = []
+    if not os.getenv("JWT_SECRET_KEY"):
+        warnings.append("JWT_SECRET_KEY not set — using insecure default (dev only)")
+    if not os.getenv("TOKEN_ENCRYPTION_KEY"):
+        warnings.append("TOKEN_ENCRYPTION_KEY not set — using insecure default (dev only)")
+    for key in ("JWT_SECRET_KEY", "TOKEN_ENCRYPTION_KEY"):
+        val = os.getenv(key, "")
+        if val in ("devflow-super-secret-key-change-in-prod", "devflow-default-enc-key"):
+            warnings.append(f"{key} is set to a known default — rotate for production")
+    ai_provider = os.getenv("AI_PROVIDER", "")
+    valid_providers = ("openai", "openai-compatible", "ollama", "lmstudio", "groq")
+    if ai_provider and ai_provider not in valid_providers:
+        warnings.append(f"AI_PROVIDER '{ai_provider}' is not recognised (use: {', '.join(valid_providers)})")
+
+    ai_key_var = "GROQ_API_KEY" if ai_provider == "groq" else "OPENAI_API_KEY"
+    ai_key_label = "Groq" if ai_provider == "groq" else "OpenAI"
+    for var, label in [
+        ("GITHUB_TOKEN", "GitHub"),
+        ("JENKINS_URL", "Jenkins"),
+        ("PROMETHEUS_URL", "Prometheus"),
+        ("GRAFANA_URL", "Grafana"),
+        ("GRAFANA_API_KEY", "Grafana API key"),
+        ("KUBE_CONFIG_PATH", "Kubernetes config"),
+        ("SLACK_WEBHOOK_URL", "Slack"),
+        ("SMTP_SERVER", "SMTP"),
+        (ai_key_var, ai_key_label if ai_provider in ("openai", "openai-compatible", "groq") else f"{ai_key_label} (not needed for current AI_PROVIDER)"),
+        ("JIRA_URL", "Jira"),
+    ]:
+        if not os.getenv(var):
+            warnings.append(f"{label} integration not configured (env var {var} not set)")
+    for w in warnings:
+        logger.warning("Config: %s", w)
+    return warnings
+
+
 class Config:
     APP_NAME = os.getenv("APP_NAME", "DevFlow SaaS")
     APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
@@ -25,6 +64,9 @@ class Config:
     JENKINS_URL = os.getenv("JENKINS_URL", "")
     JENKINS_USER = os.getenv("JENKINS_USER", "")
     JENKINS_TOKEN = os.getenv("JENKINS_TOKEN", "")
+    JENKINS_USERNAME = os.getenv("JENKINS_USERNAME", "")
+    JENKINS_API_TOKEN = os.getenv("JENKINS_API_TOKEN", "")
+    JENKINS_JOB_NAME = os.getenv("JENKINS_JOB_NAME", "devflow-pipeline")
     DOCKER_HUB_USERNAME = os.getenv("DOCKER_HUB_USERNAME", "")
     DOCKER_HUB_TOKEN = os.getenv("DOCKER_HUB_TOKEN", "")
     KUBE_CONFIG_PATH = os.getenv("KUBE_CONFIG_PATH", "")
@@ -40,3 +82,11 @@ class Config:
     SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    AI_PROVIDER = os.getenv("AI_PROVIDER", "").lower()
+    AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "60"))

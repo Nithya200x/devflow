@@ -204,8 +204,8 @@ def connect_repo():
     topics = []
     try:
         topics = gh.get_topics(owner, name)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to fetch topics for %s/%s: %s", owner, name, e)
 
     repo = GitRepository(
         repo_id=repo_data["id"],
@@ -271,8 +271,8 @@ def repo_details(repo_id):
     latest_release = {}
     try:
         latest_release = gh.get_latest_release(repo.owner, repo.name)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to fetch latest release for %s/%s: %s", repo.owner, repo.name, e)
 
     return jsonify({
         "id": repo.id,
@@ -471,10 +471,10 @@ def dashboard_summary():
                 try:
                     prs = gh.get_pull_requests(r.owner, r.name, state="open")
                     open_prs += len(prs)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as e:
+                    logger.warning("Failed to get PR count for %s/%s: %s", r.owner, r.name, e)
+        except Exception as e:
+            logger.warning("Dashboard aggregate error: %s", e)
 
     return jsonify({
         "connected": True,

@@ -294,14 +294,20 @@ To be implemented in a future phase. The `OrchestrationService.set_ai_service()`
 - [ ] Map Jenkins build events to `BuildStarted`, `BuildSucceeded`, `BuildFailed`
 
 ### Docker Integration
-- [ ] Implement `DockerEvidenceCollector` with Docker SDK
-- [ ] Monitor container crash events
-- [ ] Map to `ContainerCrashed` event type
+- [x] Implement `DockerEvidenceCollector` with Docker SDK
+- [x] Monitor container crash events (die, oom, health_status)
+- [x] Map to `CONTAINER_EXITED`, `CONTAINER_OOM_KILLED`, `CONTAINER_UNHEALTHY`
+- [x] Real-time event subscriber (daemon thread)
+- [x] Container stats API (CPU, memory, network, block IO, PIDs)
+- [x] Environment variable masking for secrets
 
 ### Kubernetes Integration
-- [ ] Implement `KubernetesEvidenceCollector` with Kubernetes API
-- [ ] Watch pod events, health checks, restarts
-- [ ] Map to `PodRestarted`, `HealthCheckFailed`, `DeploymentStarted/Succeeded/Failed`
+- [x] Implement `KubernetesEvidenceCollector` with Kubernetes API
+- [x] Watch pod events via `list_event_for_all_namespaces`
+- [x] Map to `CRASH_LOOP_BACK_OFF`, `IMAGE_PULL_BACK_OFF`, `FAILED_SCHEDULING`, `NODE_NOT_READY`, `OOM_KILLED`
+- [x] Real-time event watcher (daemon thread)
+- [x] Cluster metrics (pod phases, container states, node/deployment health)
+- [x] kubeconfig + in-cluster config fallback
 
 ### Prometheus Integration
 - [ ] Implement `PrometheusEvidenceCollector` with Prometheus HTTP API

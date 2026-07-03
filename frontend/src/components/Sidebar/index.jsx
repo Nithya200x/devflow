@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiLayout, FiBox, FiServer, FiAlertTriangle, FiLogOut, FiLayers, FiShield, FiPlay, FiGithub, FiChevronDown, FiChevronUp, FiActivity, FiBell, FiSearch } from 'react-icons/fi';
+import { FiLayout, FiBox, FiServer, FiAlertTriangle, FiLogOut, FiLayers, FiShield, FiPlay, FiGithub, FiChevronDown, FiChevronUp, FiActivity, FiBell, FiSearch, FiBarChart2 } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { getInitials } from '../../utils/helpers';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ export function Sidebar() {
   const isActive = (path) => location.pathname === path ? 'active' : '';
   const isGithubChild = (path) => location.pathname.startsWith(path) ? 'active' : '';
   const isOrchChild = (path) => location.pathname.startsWith(path) ? 'active' : '';
+  const isMonitorChild = (path) => location.pathname.startsWith(path) ? 'active' : '';
 
   const handleLogout = () => {
     logout();
@@ -64,6 +65,8 @@ export function Sidebar() {
           </div>
         )}
       </div>
+      
+      <Link to="/monitoring" className={isMonitorChild('/monitoring') || isActive('/monitoring')} style={{ marginTop: '0.5rem' }}><FiBarChart2 /> Observability</Link>
       
       <div className="user-profile">
         <div className="user-avatar">{getInitials(user.username)}</div>

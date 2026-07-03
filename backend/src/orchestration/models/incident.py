@@ -28,11 +28,20 @@ class OrchestrationIncident:
         related_incidents: List[str] = None,
         evidence: List[Any] = None,
         timeline: List[Any] = None,
-        ai_analysis: Dict[str, Any] = None,
+        ai_analysis: str = "",
         confidence_score: float = 0.0,
         suggested_fixes: List[str] = None,
+        ai_metadata: Dict[str, Any] = None,
         created_at: datetime.datetime = None,
         resolved_at: datetime.datetime = None,
+        possible_causes: List[str] = None,
+        preventive_actions: List[str] = None,
+        similar_patterns: List[str] = None,
+        risk_assessment: str = "",
+        estimated_resolution_time: str = "",
+        requires_human: bool = False,
+        affected_components: List[str] = None,
+        prompt_version: str = "",
     ):
         self.incident_id = incident_id
         self.repository = repository
@@ -53,11 +62,20 @@ class OrchestrationIncident:
         self.related_incidents = related_incidents or []
         self.evidence = evidence or []
         self.timeline = timeline or []
-        self.ai_analysis = ai_analysis or {}
+        self.ai_analysis = ai_analysis
         self.confidence_score = confidence_score
         self.suggested_fixes = suggested_fixes or []
+        self.ai_metadata = ai_metadata or {}
         self.created_at = created_at or datetime.datetime.utcnow()
         self.resolved_at = resolved_at
+        self.possible_causes = possible_causes or []
+        self.preventive_actions = preventive_actions or []
+        self.similar_patterns = similar_patterns or []
+        self.risk_assessment = risk_assessment
+        self.estimated_resolution_time = estimated_resolution_time
+        self.requires_human = requires_human
+        self.affected_components = affected_components or []
+        self.prompt_version = prompt_version
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -81,10 +99,19 @@ class OrchestrationIncident:
             "evidence": [e.to_dict() if hasattr(e, "to_dict") else e for e in self.evidence],
             "timeline": [t.to_dict() if hasattr(t, "to_dict") else t for t in self.timeline],
             "ai_analysis": self.ai_analysis,
+            "ai_metadata": self.ai_metadata,
             "confidence_score": self.confidence_score,
             "suggested_fixes": self.suggested_fixes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "possible_causes": self.possible_causes,
+            "preventive_actions": self.preventive_actions,
+            "similar_patterns": self.similar_patterns,
+            "risk_assessment": self.risk_assessment,
+            "estimated_resolution_time": self.estimated_resolution_time,
+            "requires_human": self.requires_human,
+            "affected_components": self.affected_components,
+            "prompt_version": self.prompt_version,
         }
 
     @classmethod
@@ -117,15 +144,24 @@ class OrchestrationIncident:
             related_incidents=data.get("related_incidents", []),
             evidence=evidence,
             timeline=timeline,
-            ai_analysis=data.get("ai_analysis", {}),
+            ai_analysis=data.get("ai_analysis", ""),
             confidence_score=data.get("confidence_score", 0.0),
             suggested_fixes=data.get("suggested_fixes", []),
+            ai_metadata=data.get("ai_metadata", {}),
             created_at=datetime.datetime.fromisoformat(data["created_at"])
             if "created_at" in data
             else None,
             resolved_at=datetime.datetime.fromisoformat(data["resolved_at"])
             if data.get("resolved_at")
             else None,
+            possible_causes=data.get("possible_causes", []),
+            preventive_actions=data.get("preventive_actions", []),
+            similar_patterns=data.get("similar_patterns", []),
+            risk_assessment=data.get("risk_assessment", ""),
+            estimated_resolution_time=data.get("estimated_resolution_time", ""),
+            requires_human=data.get("requires_human", False),
+            affected_components=data.get("affected_components", []),
+            prompt_version=data.get("prompt_version", ""),
         )
 
 

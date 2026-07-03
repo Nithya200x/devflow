@@ -1,6 +1,9 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from orchestration.interfaces.collector_interface import BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class CollectorRegistry:
@@ -22,7 +25,11 @@ class CollectorRegistry:
     def collect_all_evidence(self, context: Dict[str, Any]) -> Dict[str, Any]:
         results = {}
         for name, collector in self._collectors.items():
-            results[name] = collector.collect_evidence(context)
+            try:
+                results[name] = collector.collect_evidence(context)
+            except Exception as e:
+                logger.warning("Collector %s failed to collect evidence: %s", name, e)
+                results[name] = {"source": name, "error": str(e)[:200]}
         return results
 
     def collect_all_logs(self, context: Dict[str, Any]) -> Dict[str, List[str]]:

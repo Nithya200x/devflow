@@ -26,3 +26,18 @@ export const getCollectors = () =>
 
 export const getSeverityRules = () =>
   api.get('/orchestration/severity/rules').then(r => r.data);
+
+export const triggerAnalysis = (incidentId) =>
+  api.post(`/orchestration/incidents/${incidentId}/analyze`).then(r => r.data);
+
+export const getAnalysis = (incidentId) =>
+  api.get(`/orchestration/incidents/${incidentId}/analysis`).then(r => r.data);
+
+export const listAnalyses = () =>
+  api.get('/orchestration/ai/analyses').then(r => r.data);
+
+export const listDbAnalyses = () =>
+  api.get('/orchestration/ai/analyses/db').then(r => r.data);
+
+export const getDbAnalysis = (incidentId) =>
+  api.get(`/orchestration/ai/analyses/db/${incidentId}`).then(r => r.data);

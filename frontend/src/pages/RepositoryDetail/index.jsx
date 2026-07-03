@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FiStar, FiGitBranch, FiExternalLink, FiCode, FiEye, FiAlertCircle,
   FiCopy, FiRefreshCw, FiLink, FiTrash2, FiSend, FiBookOpen,
   FiUser, FiCalendar, FiGitCommit, FiGitPullRequest, FiClock,
-  FiTag, FiDatabase, FiShield, FiInfo
+  FiTag, FiDatabase, FiShield, FiInfo, FiCheck, FiX, FiLoader
 } from 'react-icons/fi';
 import * as githubService from '../../services/githubService';
+import * as jenkinsService from '../../services/jenkinsService';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
 import { RepositoryTabs } from '../../components/Repository/RepositoryTabs';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
@@ -25,6 +26,98 @@ export default function RepositoryDetail() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showDeployInfo, setShowDeployInfo] = useState(false);
+  const [deployState, setDeployState] = useState('idle');
+  const [deployError, setDeployError] = useState(null);
+  const [queueId, setQueueId] = useState(null);
+  const [buildNumber, setBuildNumber] = useState(null);
+  const [buildStatus, setBuildStatus] = useState(null);
+  const pollRef = useRef(null);
+  const emitRef = useRef(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (emitRef.current) { clearTimeout(emitRef.current); emitRef.current = null; }
+  };
+
+  const pollQueue = useCallback(async (qId) => {
+    try {
+      const res = await jenkinsService.getQueueStatus(qId);
+      const data = res.data;
+      if (data.build_number) {
+        setBuildNumber(data.build_number);
+        setQueueId(null);
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+        pollBuild(data.build_number);
+        return;
+      }
+    } catch {
+    }
+  }, []);
+
+  const pollBuild = useCallback((bNum) => {
+    const check = async () => {
+      try {
+        const res = await jenkinsService.getBuildStatus(bNum);
+        const info = res.data;
+        setBuildStatus(info.status);
+        if (info.status === 'success' || info.status === 'failed' || info.status === 'aborted') {
+          stopPolling();
+          setDeployState(info.status);
+          if (info.status === 'failed') {
+            setDeployError('Build failed');
+          }
+          emitRef.current = setTimeout(async () => {
+            try {
+              await jenkinsService.emitBuildEvent(bNum, {
+                event_type: info.status === 'success' ? 'BUILD_SUCCEEDED' : 'BUILD_FAILED',
+                repository: repo?.name || '',
+                branch: repo?.default_branch || '',
+                commit_sha: latestCommit?.sha || '',
+                triggered_by: '',
+              });
+            } catch {}
+          }, 500);
+          return;
+        }
+      } catch {
+        stopPolling();
+        setDeployState('failed');
+        setDeployError('Failed to check build status');
+      }
+    };
+    check();
+    pollRef.current = setInterval(check, 3000);
+  }, [repo, latestCommit]);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
+  const handleDeployClick = async () => {
+    if (deployState === 'running' || deployState === 'queued') return;
+    setDeployState('queued');
+    setDeployError(null);
+    setQueueId(null);
+    setBuildNumber(null);
+    setBuildStatus(null);
+    setShowDeployInfo(true);
+    try {
+      const res = await jenkinsService.triggerBuild({
+        repository: repo?.name || '',
+        branch: repo?.default_branch || '',
+        commit_sha: latestCommit?.sha || '',
+        triggered_by: '',
+      });
+      const data = res.data;
+      setQueueId(data.queue_id);
+      if (data.queue_id) {
+        pollQueue(data.queue_id);
+      }
+    } catch (err) {
+      setDeployState('failed');
+      setDeployError(err.response?.data?.msg || err.message || 'Failed to trigger build');
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -56,11 +149,6 @@ export default function RepositoryDetail() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  const handleDeployClick = () => {
-    setShowDeployInfo(true);
-    setTimeout(() => setShowDeployInfo(false), 5000);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -181,19 +269,55 @@ export default function RepositoryDetail() {
         <button className="btn btn-success" onClick={() => navigate(`/github/repos/${repoId}/pulls`)}>
           <FiGitPullRequest size={16} /> View Pull Requests
         </button>
-        <button className="btn btn-danger" onClick={handleDeployClick}>
-          <FiSend size={16} /> Deploy
+        <button className="btn btn-danger" onClick={handleDeployClick} disabled={deployState === 'running' || deployState === 'queued'}>
+          <FiSend size={16} /> {deployState === 'running' || deployState === 'queued' ? 'Deploying...' : 'Deploy'}
         </button>
       </div>
 
       {showDeployInfo && (
-        <div className="glass-panel deploy-notice" style={{ marginBottom: '1.5rem', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
-          <FiInfo size={20} style={{ color: 'var(--warning-color)' }} />
+        <div className="glass-panel deploy-notice" style={{ marginBottom: '1.5rem', borderColor: deployState === 'success' ? 'rgba(16, 185, 129, 0.3)' : deployState === 'failed' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)' }}>
+          {(deployState === 'queued' || deployState === 'running') && <FiLoader size={20} style={{ color: 'var(--warning-color)', animation: 'spin 1s linear infinite' }} />}
+          {deployState === 'success' && <FiCheck size={20} style={{ color: 'var(--success-color)' }} />}
+          {deployState === 'failed' && <FiX size={20} style={{ color: 'var(--danger-color)' }} />}
+          {deployState === 'idle' && <FiInfo size={20} style={{ color: 'var(--warning-color)' }} />}
           <div>
-            <strong>Jenkins integration will be available in the next implementation phase.</strong>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-              Repository ID: {repo.id} | Repository: {repo.name} | Branch: {repo.default_branch} | Latest Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
-            </p>
+            {deployState === 'queued' && (
+              <>
+                <strong>Build queued on Jenkins...</strong>
+                {queueId && <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Queue ID: {queueId}</p>}
+              </>
+            )}
+            {deployState === 'running' && (
+              <>
+                <strong>Build #{buildNumber} is running...</strong>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Waiting for build to complete.</p>
+              </>
+            )}
+            {deployState === 'success' && (
+              <>
+                <strong>Build #{buildNumber} completed successfully!</strong>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
+                </p>
+              </>
+            )}
+            {deployState === 'failed' && (
+              <>
+                <strong>Build #{buildNumber} failed.</strong>
+                {deployError && <p style={{ color: 'var(--danger-color)', fontSize: '0.85rem', marginTop: '0.25rem' }}>{deployError}</p>}
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
+                </p>
+              </>
+            )}
+            {deployState === 'idle' && (
+              <>
+                <strong>Deploy this repository via Jenkins CI/CD pipeline.</strong>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -257,8 +381,8 @@ export default function RepositoryDetail() {
               </div>
             </div>
 
-            <button className="btn btn-primary" onClick={handleDeployClick} style={{ marginTop: '1.25rem', width: '100%', padding: '1rem' }}>
-              <FiSend size={18} /> Deploy Now
+            <button className="btn btn-primary" onClick={handleDeployClick} style={{ marginTop: '1.25rem', width: '100%', padding: '1rem' }} disabled={deployState === 'running' || deployState === 'queued'}>
+              <FiSend size={18} /> {deployState === 'running' || deployState === 'queued' ? 'Deploying...' : 'Deploy Now'}
             </button>
           </div>
 

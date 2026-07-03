@@ -1,28 +1,37 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
+from extensions import db
+from orchestration.models.event_store import AIAnalysisStore
 
-from orchestration import OrchestrationService
+from orchestration.services.orchestration_service import get_orchestrator
 from orchestration.events.event_types import (
     BuildFailed,
     BuildStarted,
     BuildSucceeded,
     ContainerCrashed,
+    ContainerExited,
+    ContainerOOMKilled,
+    ContainerUnhealthy,
+    CrashLoopBackOff,
     DeploymentFailed,
     DeploymentRequested,
     DeploymentStarted,
     DeploymentSucceeded,
+    FailedScheduling,
     HealthCheckFailed,
     HighCPUDetected,
     HighMemoryDetected,
+    ImagePullBackOff,
     IncidentCreated,
     IncidentResolved,
+    NodeNotReady,
     PodRestarted,
     RepositoryConnected,
 )
 
 orchestration_bp = Blueprint("orchestration", __name__)
 
-_service = OrchestrationService()
+_service = get_orchestrator()
 
 
 @orchestration_bp.route("/events", methods=["POST"])
@@ -45,6 +54,13 @@ def ingest_event():
         "DEPLOYMENT_SUCCEEDED": DeploymentSucceeded,
         "DEPLOYMENT_FAILED": DeploymentFailed,
         "CONTAINER_CRASHED": ContainerCrashed,
+        "CONTAINER_EXITED": ContainerExited,
+        "CONTAINER_UNHEALTHY": ContainerUnhealthy,
+        "CONTAINER_OOM_KILLED": ContainerOOMKilled,
+        "CRASH_LOOP_BACK_OFF": CrashLoopBackOff,
+        "IMAGE_PULL_BACK_OFF": ImagePullBackOff,
+        "FAILED_SCHEDULING": FailedScheduling,
+        "NODE_NOT_READY": NodeNotReady,
         "POD_RESTARTED": PodRestarted,
         "HIGH_CPU_DETECTED": HighCPUDetected,
         "HIGH_MEMORY_DETECTED": HighMemoryDetected,
@@ -137,3 +153,84 @@ def list_collectors():
 def list_severity_rules():
     rules = _service.severity_engine.list_rules()
     return jsonify({"rules": rules}), 200
+
+
+@orchestration_bp.route("/incidents/<incident_id>/analyze", methods=["POST"])
+@jwt_required()
+def trigger_analysis(incident_id):
+    incident = _service.get_incident(incident_id)
+    if not incident:
+        return jsonify({"msg": "Incident not found"}), 404
+    try:
+        from orchestration.ai.service import trigger_ai_analysis
+        trigger_ai_analysis(incident_id)
+        return jsonify({"message": "AI analysis triggered", "incident_id": incident_id}), 202
+    except Exception as e:
+        return jsonify({"msg": f"Failed to trigger AI analysis: {str(e)}"}), 500
+
+
+@orchestration_bp.route("/incidents/<incident_id>/analysis", methods=["GET"])
+@jwt_required()
+def get_analysis(incident_id):
+    incident = _service.get_incident(incident_id)
+    if not incident:
+        return jsonify({"msg": "Incident not found"}), 404
+    return jsonify({
+        "incident_id": incident.incident_id,
+        "ai_analysis": incident.ai_analysis if incident.ai_analysis else None,
+        "ai_metadata": incident.ai_metadata if hasattr(incident, "ai_metadata") else {},
+        "root_cause": incident.root_cause or "",
+        "confidence_score": incident.confidence_score,
+        "suggested_fixes": incident.suggested_fixes or [],
+        "possible_causes": incident.possible_causes or [],
+        "preventive_actions": incident.preventive_actions or [],
+        "similar_patterns": incident.similar_patterns or [],
+        "risk_assessment": incident.risk_assessment or "",
+        "estimated_resolution_time": incident.estimated_resolution_time or "",
+        "requires_human": incident.requires_human,
+        "affected_components": incident.affected_components or [],
+        "status": "completed" if incident.ai_analysis else "pending",
+    }), 200
+
+
+@orchestration_bp.route("/ai/analyses/db", methods=["GET"])
+@jwt_required()
+def list_db_analyses():
+    records = AIAnalysisStore.query.order_by(AIAnalysisStore.analyzed_at.desc()).limit(50).all()
+    return jsonify({"analyses": [r.to_dict() for r in records]}), 200
+
+
+@orchestration_bp.route("/ai/analyses/db/<incident_id>", methods=["GET"])
+@jwt_required()
+def get_db_analysis(incident_id):
+    record = AIAnalysisStore.query.filter_by(incident_id=incident_id).order_by(AIAnalysisStore.analyzed_at.desc()).first()
+    if not record:
+        return jsonify({"msg": "No analysis found"}), 404
+    return jsonify(record.to_dict()), 200
+
+
+@orchestration_bp.route("/ai/analyses", methods=["GET"])
+@jwt_required()
+def list_analyses():
+    incidents = _service.get_all_incidents()
+    results = []
+    for inc in incidents:
+        if inc.ai_analysis:
+            results.append({
+                "incident_id": inc.incident_id,
+                "summary": inc.summary,
+                "root_cause": inc.root_cause or "",
+                "confidence_score": inc.confidence_score,
+                "severity": inc.severity,
+                "status": inc.status,
+                "created_at": inc.created_at.isoformat() if inc.created_at else None,
+                "suggested_fixes": inc.suggested_fixes or [],
+                "affected_components": inc.affected_components or [],
+                "risk_assessment": inc.risk_assessment or "",
+                "estimated_resolution_time": inc.estimated_resolution_time or "",
+                "requires_human": inc.requires_human,
+                "possible_causes": inc.possible_causes or [],
+                "preventive_actions": inc.preventive_actions or [],
+                "similar_patterns": inc.similar_patterns or [],
+            })
+    return jsonify({"analyses": results}), 200

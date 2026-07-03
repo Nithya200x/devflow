@@ -18,6 +18,13 @@ class EventType(Enum):
     HEALTH_CHECK_FAILED = auto()
     INCIDENT_CREATED = auto()
     INCIDENT_RESOLVED = auto()
+    CONTAINER_EXITED = auto()
+    CONTAINER_UNHEALTHY = auto()
+    CONTAINER_OOM_KILLED = auto()
+    CRASH_LOOP_BACK_OFF = auto()
+    IMAGE_PULL_BACK_OFF = auto()
+    FAILED_SCHEDULING = auto()
+    NODE_NOT_READY = auto()
 
 
 class OrchestrationEvent:
@@ -79,45 +86,88 @@ class DeploymentRequested(OrchestrationEvent):
 
 
 class BuildStarted(OrchestrationEvent):
-    def __init__(self, build_number: str, repository: str, branch: str, metadata: dict = None):
+    def __init__(
+        self,
+        build_number: str = "",
+        repository: str = "",
+        branch: str = "",
+        commit_sha: str = "",
+        triggered_by: str = "",
+        build_info: dict = None,
+        metadata: dict = None,
+    ):
+        merged_meta = {
+            "build_number": build_number,
+            "repository": repository,
+            "branch": branch,
+            "commit_sha": commit_sha,
+            "triggered_by": triggered_by,
+            **(metadata or {}),
+        }
+        if build_info:
+            merged_meta["build_info"] = build_info
         super().__init__(
             event_type=EventType.BUILD_STARTED,
             source="jenkins",
-            metadata={
-                "build_number": build_number,
-                "repository": repository,
-                "branch": branch,
-                **(metadata or {}),
-            },
+            metadata=merged_meta,
         )
 
 
 class BuildSucceeded(OrchestrationEvent):
-    def __init__(self, build_number: str, repository: str, metadata: dict = None):
+    def __init__(
+        self,
+        build_number: str = "",
+        repository: str = "",
+        branch: str = "",
+        commit_sha: str = "",
+        triggered_by: str = "",
+        build_info: dict = None,
+        metadata: dict = None,
+    ):
+        merged_meta = {
+            "build_number": build_number,
+            "repository": repository,
+            "branch": branch,
+            "commit_sha": commit_sha,
+            "triggered_by": triggered_by,
+            **(metadata or {}),
+        }
+        if build_info:
+            merged_meta["build_info"] = build_info
         super().__init__(
             event_type=EventType.BUILD_SUCCEEDED,
             source="jenkins",
-            metadata={
-                "build_number": build_number,
-                "repository": repository,
-                **(metadata or {}),
-            },
+            metadata=merged_meta,
         )
 
 
 class BuildFailed(OrchestrationEvent):
     def __init__(
-        self, build_number: str, repository: str, reason: str = "", metadata: dict = None
+        self,
+        build_number: str = "",
+        repository: str = "",
+        branch: str = "",
+        commit_sha: str = "",
+        triggered_by: str = "",
+        reason: str = "",
+        build_info: dict = None,
+        metadata: dict = None,
     ):
+        merged_meta = {
+            "build_number": build_number,
+            "repository": repository,
+            "branch": branch,
+            "commit_sha": commit_sha,
+            "triggered_by": triggered_by,
+            "reason": reason,
+            **(metadata or {}),
+        }
+        if build_info:
+            merged_meta["build_info"] = build_info
         super().__init__(
             event_type=EventType.BUILD_FAILED,
             source="jenkins",
-            metadata={
-                "build_number": build_number,
-                "repository": repository,
-                "reason": reason,
-                **(metadata or {}),
-            },
+            metadata=merged_meta,
         )
 
 
@@ -299,6 +349,158 @@ class IncidentResolved(OrchestrationEvent):
             metadata={
                 "incident_id": incident_id,
                 "resolution_notes": resolution_notes,
+                **(metadata or {}),
+            },
+        )
+
+
+class ContainerExited(OrchestrationEvent):
+    def __init__(
+        self,
+        container_id: str = "",
+        container_name: str = "",
+        image: str = "",
+        exit_code: int = 0,
+        reason: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.CONTAINER_CRASHED,
+            source="docker",
+            metadata={
+                "container_id": container_id,
+                "container_name": container_name,
+                "image": image,
+                "exit_code": exit_code,
+                "reason": reason or "exited_with_error",
+                **(metadata or {}),
+            },
+        )
+
+
+class ContainerUnhealthy(OrchestrationEvent):
+    def __init__(
+        self,
+        container_id: str = "",
+        container_name: str = "",
+        image: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.HEALTH_CHECK_FAILED,
+            source="docker",
+            metadata={
+                "container_id": container_id,
+                "container_name": container_name,
+                "image": image,
+                "check_type": "container_health",
+                "reason": "unhealthy",
+                **(metadata or {}),
+            },
+        )
+
+
+class ContainerOOMKilled(OrchestrationEvent):
+    def __init__(
+        self,
+        container_id: str = "",
+        container_name: str = "",
+        image: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.CONTAINER_CRASHED,
+            source="docker",
+            metadata={
+                "container_id": container_id,
+                "container_name": container_name,
+                "image": image,
+                "exit_code": 137,
+                "reason": "oom_killed",
+                **(metadata or {}),
+            },
+        )
+
+
+class CrashLoopBackOff(OrchestrationEvent):
+    def __init__(
+        self,
+        pod_name: str = "",
+        namespace: str = "",
+        container_name: str = "",
+        restart_count: int = 0,
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.CONTAINER_CRASHED,
+            source="kubernetes",
+            metadata={
+                "pod_name": pod_name,
+                "namespace": namespace,
+                "container_name": container_name,
+                "restart_count": restart_count,
+                "reason": "CrashLoopBackOff",
+                **(metadata or {}),
+            },
+        )
+
+
+class ImagePullBackOff(OrchestrationEvent):
+    def __init__(
+        self,
+        pod_name: str = "",
+        namespace: str = "",
+        image: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.DEPLOYMENT_FAILED,
+            source="kubernetes",
+            metadata={
+                "pod_name": pod_name,
+                "namespace": namespace,
+                "image": image,
+                "reason": "ImagePullBackOff",
+                **(metadata or {}),
+            },
+        )
+
+
+class FailedScheduling(OrchestrationEvent):
+    def __init__(
+        self,
+        pod_name: str = "",
+        namespace: str = "",
+        reason: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.HEALTH_CHECK_FAILED,
+            source="kubernetes",
+            metadata={
+                "pod_name": pod_name,
+                "namespace": namespace,
+                "reason": reason or "FailedScheduling",
+                "check_type": "scheduling",
+                **(metadata or {}),
+            },
+        )
+
+
+class NodeNotReady(OrchestrationEvent):
+    def __init__(
+        self,
+        node_name: str = "",
+        reason: str = "",
+        metadata: dict = None,
+    ):
+        super().__init__(
+            event_type=EventType.HEALTH_CHECK_FAILED,
+            source="kubernetes",
+            metadata={
+                "node_name": node_name,
+                "reason": reason or "NodeNotReady",
+                "check_type": "node_health",
                 **(metadata or {}),
             },
         )
