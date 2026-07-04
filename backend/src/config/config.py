@@ -53,7 +53,12 @@ class Config:
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
     database_dir = os.path.join(basedir, 'database')
     os.makedirs(database_dir, exist_ok=True)
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", 'sqlite:///' + os.path.join(database_dir, 'app.db'))
+
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = db_url if db_url else 'sqlite:///' + os.path.join(database_dir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     TOKEN_ENCRYPTION_KEY = os.getenv("TOKEN_ENCRYPTION_KEY", "devflow-default-enc-key")
@@ -73,6 +78,7 @@ class Config:
     PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "")
     GRAFANA_URL = os.getenv("GRAFANA_URL", "")
     GRAFANA_API_KEY = os.getenv("GRAFANA_API_KEY", "")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "")
     JIRA_URL = os.getenv("JIRA_URL", "")
     JIRA_EMAIL = os.getenv("JIRA_EMAIL", "")
     JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")

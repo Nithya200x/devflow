@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: devflow-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "src.app:create_app()" --bind 0.0.0.0:$PORT --workers 2
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: groq
+      - key: PROMETHEUS_URL
+        sync: false
+      - key: GRAFANA_URL
+        sync: false
+      - key: JENKINS_URL
+        sync: false
+      - key: PYTHONPATH
+        value: src
+      - key: PYTHON_VERSION
+        value: 3.11.9
+    healthCheckPath: /health
+    domains:
+      - devflow-backend.onrender.com

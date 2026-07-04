@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY . .
 
 # Run migrations and then start the server
-CMD ["sh", "-c", "flask db upgrade && gunicorn --bind 0.0.0.0:5000 --workers 2 src.app:app"]
+CMD ["sh", "-c", "flask db upgrade && gunicorn \"src.app:create_app()\" --bind 0.0.0.0:${PORT:-5000} --workers 2"]

@@ -78,7 +78,14 @@ def create_app():
     app.config['AI_RATE_LIMIT_BACKOFF'] = Config.AI_RATE_LIMIT_BACKOFF
     app.config['AI_ANALYSIS_CACHE'] = Config.AI_ANALYSIS_CACHE
 
-    CORS(app)
+    frontend_url = Config.FRONTEND_URL
+    if frontend_url:
+        CORS(app, resources={r"/api/*": {"origins": frontend_url}}, supports_credentials=True)
+        logger.info("CORS restricted to frontend URL: %s", frontend_url)
+    else:
+        CORS(app)
+        logger.info("CORS: no FRONTEND_URL set — allowing all origins (dev mode)")
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
@@ -130,3 +137,4 @@ if __name__ == "__main__":
         port=Config.PORT,
         debug=Config.FLASK_DEBUG,
     )
+
