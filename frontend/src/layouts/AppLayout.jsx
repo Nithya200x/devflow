@@ -9,9 +9,11 @@ export function AppLayout({ children }) {
   return (
     <div className="app-container">
       <Sidebar />
-      <div className="main-content">
-        {children}
-      </div>
+      <main className="main-content">
+        <div className="page-enter">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

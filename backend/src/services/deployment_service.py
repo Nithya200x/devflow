@@ -9,7 +9,7 @@ class DeploymentService:
 
     @staticmethod
     def check_and_update():
-        thirty_seconds_ago = datetime.datetime.utcnow() - datetime.timedelta(seconds=30)
+        thirty_seconds_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)
         old_running = Deployment.query.filter(
             Deployment.status == "running",
             Deployment.created_at < thirty_seconds_ago

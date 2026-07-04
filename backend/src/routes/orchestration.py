@@ -1,7 +1,10 @@
+import inspect
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from extensions import db
 from orchestration.models.event_store import AIAnalysisStore
+from utils.time import to_iso
 
 from orchestration.services.orchestration_service import get_orchestrator
 from orchestration.events.event_types import (
@@ -42,6 +45,9 @@ def ingest_event():
         return jsonify({"msg": "event_type is required"}), 400
 
     event_type = data["event_type"]
+    project_id = data.get("project_id")
+    repository_owner = data.get("repository_owner")
+    repository_name = data.get("repository_name")
     metadata = data.get("metadata", {})
 
     event_map = {
@@ -73,7 +79,14 @@ def ingest_event():
     if not cls:
         return jsonify({"msg": f"Unknown event_type: {event_type}"}), 400
 
-    event = cls(**metadata)
+    sig = inspect.signature(cls.__init__)
+    valid_params = set(sig.parameters.keys()) - {"self"}
+    clean_meta = {k: v for k, v in metadata.items() if k in valid_params}
+    extra_meta = {k: v for k, v in metadata.items() if k not in valid_params}
+    event = cls(**clean_meta)
+    event.metadata.update(extra_meta)
+    if project_id is not None:
+        event.metadata["project_id"] = project_id
     incident = _service.process_event(event)
 
     return jsonify({
@@ -223,7 +236,7 @@ def list_analyses():
                 "confidence_score": inc.confidence_score,
                 "severity": inc.severity,
                 "status": inc.status,
-                "created_at": inc.created_at.isoformat() if inc.created_at else None,
+                "created_at": to_iso(inc.created_at),
                 "suggested_fixes": inc.suggested_fixes or [],
                 "affected_components": inc.affected_components or [],
                 "risk_assessment": inc.risk_assessment or "",

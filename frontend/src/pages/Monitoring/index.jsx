@@ -63,7 +63,7 @@ export default function MonitoringDashboard() {
             </span>
           </div>
           {promHealth?.connected ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
               <div><span className="deploy-info-label">Version</span><span className="deploy-info-value">{promHealth.version || 'N/A'}</span></div>
               <div><span className="deploy-info-label">Latency</span><span className="deploy-info-value">{promHealth.latency_ms ? `${promHealth.latency_ms}ms` : 'N/A'}</span></div>
             </div>
@@ -81,7 +81,7 @@ export default function MonitoringDashboard() {
             </span>
           </div>
           {grafanaHealth?.connected ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
               <div><span className="deploy-info-label">Version</span><span className="deploy-info-value">{grafanaHealth.version || 'N/A'}</span></div>
               <div><span className="deploy-info-label">Latency</span><span className="deploy-info-value">{grafanaHealth.latency_ms ? `${grafanaHealth.latency_ms}ms` : 'N/A'}</span></div>
             </div>

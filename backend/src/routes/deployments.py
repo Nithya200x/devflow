@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.deployment_service import DeploymentService
+from utils.time import to_iso
 
 deployments_bp = Blueprint('deployments', __name__)
 
@@ -15,7 +16,7 @@ def handle_deployments():
             "environment": d.environment,
             "status": d.status,
             "deployed_by": d.deployed_by,
-            "created_at": d.created_at.isoformat()
+            "created_at": to_iso(d.created_at)
         } for d in deployments]), 200
 
     elif request.method == 'POST':

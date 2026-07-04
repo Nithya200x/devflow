@@ -3,6 +3,8 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional
 
+from utils.time import to_iso
+
 from orchestration.events.event_types import OrchestrationEvent
 
 
@@ -66,7 +68,7 @@ class OrchestrationIncident:
         self.confidence_score = confidence_score
         self.suggested_fixes = suggested_fixes or []
         self.ai_metadata = ai_metadata or {}
-        self.created_at = created_at or datetime.datetime.utcnow()
+        self.created_at = created_at or datetime.datetime.now(datetime.timezone.utc)
         self.resolved_at = resolved_at
         self.possible_causes = possible_causes or []
         self.preventive_actions = preventive_actions or []
@@ -102,8 +104,8 @@ class OrchestrationIncident:
             "ai_metadata": self.ai_metadata,
             "confidence_score": self.confidence_score,
             "suggested_fixes": self.suggested_fixes,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "created_at": to_iso(self.created_at),
+            "resolved_at": to_iso(self.resolved_at),
             "possible_causes": self.possible_causes,
             "preventive_actions": self.preventive_actions,
             "similar_patterns": self.similar_patterns,
@@ -174,7 +176,7 @@ class TimelineEntry:
         description: str = "",
         metadata: Dict[str, Any] = None,
     ):
-        self.timestamp = timestamp or datetime.datetime.utcnow()
+        self.timestamp = timestamp or datetime.datetime.now(datetime.timezone.utc)
         self.event_type = event_type
         self.source = source
         self.description = description
@@ -182,7 +184,7 @@ class TimelineEntry:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": to_iso(self.timestamp),
             "event_type": self.event_type,
             "source": self.source,
             "description": self.description,
@@ -215,7 +217,7 @@ class Evidence:
         self.source = source
         self.evidence_type = evidence_type
         self.data = data or {}
-        self.collected_at = collected_at or datetime.datetime.utcnow()
+        self.collected_at = collected_at or datetime.datetime.now(datetime.timezone.utc)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -223,7 +225,7 @@ class Evidence:
             "source": self.source,
             "evidence_type": self.evidence_type,
             "data": self.data,
-            "collected_at": self.collected_at.isoformat(),
+            "collected_at": to_iso(self.collected_at),
         }
 
     @classmethod

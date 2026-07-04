@@ -1,10 +1,8 @@
-import { FiLoader } from 'react-icons/fi';
-
-export function LoadingSpinner({ message = 'Loading...' }) {
+export function LoadingSpinner({ text = 'Loading...' }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '1rem' }}>
-      <FiLoader size={32} className="spin" />
-      <p style={{ color: 'var(--text-secondary)' }}>{message}</p>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '1rem' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.06)', borderTopColor: 'var(--accent-blue)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{text}</span>
     </div>
   );
 }

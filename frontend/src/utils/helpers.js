@@ -1,6 +1,19 @@
 export const formatDate = (dateStr) => {
   if (!dateStr) return '';
-  return new Date(dateStr).toLocaleString();
+  const d = new Date(dateStr);
+  return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+};
+
+export const formatDateShort = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+};
+
+export const formatTime = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
 };
 
 export const getInitials = (username) => {

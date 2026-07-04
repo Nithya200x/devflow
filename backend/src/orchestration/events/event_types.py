@@ -1,6 +1,8 @@
 import datetime
 from enum import Enum, auto
 
+from utils.time import to_iso
+
 
 class EventType(Enum):
     REPOSITORY_CONNECTED = auto()
@@ -38,14 +40,14 @@ class OrchestrationEvent:
         self.event_type = event_type
         self.source = source
         self.metadata = metadata or {}
-        self.timestamp = timestamp or datetime.datetime.utcnow()
+        self.timestamp = timestamp or datetime.datetime.now(datetime.timezone.utc)
 
     def to_dict(self):
         return {
             "event_type": self.event_type.name,
             "source": self.source,
             "metadata": self.metadata,
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": to_iso(self.timestamp),
         }
 
     @classmethod

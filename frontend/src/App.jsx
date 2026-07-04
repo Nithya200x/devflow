@@ -26,6 +26,7 @@ import MonitoringDashboard from './pages/Monitoring';
 import PrometheusMetrics from './pages/Monitoring/Metrics';
 import GrafanaDashboards from './pages/Monitoring/Dashboards';
 import ActiveAlerts from './pages/Monitoring/Alerts';
+import RepositoryCommandCenter from './pages/RepositoryCommandCenter';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
           <Route path="/github/repos/:repoId/branches" element={<AppLayout><Branches /></AppLayout>} />
           <Route path="/github/repos/:repoId/deployments" element={<AppLayout><RepositoryDeployments /></AppLayout>} />
           <Route path="/github/repos/:repoId/settings" element={<AppLayout><RepositorySettings /></AppLayout>} />
+          <Route path="/repositories/:id" element={<AppLayout><RepositoryCommandCenter /></AppLayout>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

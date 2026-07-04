@@ -88,5 +88,9 @@ class Config:
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    ALERTMANAGER_URL = os.getenv("ALERTMANAGER_URL", "http://localhost:9093")
     AI_PROVIDER = os.getenv("AI_PROVIDER", "").lower()
     AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "60"))
+    AI_MAX_CONCURRENT_REQUESTS = int(os.getenv("AI_MAX_CONCURRENT_REQUESTS", "3"))
+    AI_RATE_LIMIT_BACKOFF = os.getenv("AI_RATE_LIMIT_BACKOFF", "true").lower() == "true"
+    AI_ANALYSIS_CACHE = os.getenv("AI_ANALYSIS_CACHE", "true").lower() == "true"

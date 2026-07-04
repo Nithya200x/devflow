@@ -108,7 +108,7 @@ export default function ActiveAlerts() {
                         {namespace && <span><FiTag size={12} /> {namespace}</span>}
                         {pod && <span><FiServer size={12} /> {pod}</span>}
                         {instance && <span><FiEye size={12} /> {instance}</span>}
-                        {startsAt && <span><FiClock size={12} /> {new Date(startsAt).toLocaleString()}</span>}
+                        {startsAt && <span><FiClock size={12} /> {new Date(startsAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>}
                       </div>
                     </div>
                   </div>

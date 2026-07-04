@@ -43,7 +43,7 @@ export default function OrchestrationIncidents() {
     { key: 'category', label: 'Category', render: (row) => <span className="badge neutral">{row.category || 'N/A'}</span> },
     { key: 'repository', label: 'Repository', style: { color: 'var(--text-secondary)' }, render: (row) => row.repository || '—' },
     { key: 'status', label: 'Status', render: (row) => <span className={`badge ${row.status === 'resolved' ? 'success' : row.status === 'open' ? 'warning' : 'neutral'}`}>{row.status}</span> },
-    { key: 'created_at', label: 'Created', style: { color: 'var(--text-secondary)' }, render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : '—' },
+    { key: 'created_at', label: 'Created', style: { color: 'var(--text-secondary)' }, render: (row) => row.created_at ? new Date(row.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—' },
     {
       key: 'actions', label: 'Actions',
       render: (row) => (

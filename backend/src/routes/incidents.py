@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from services.incident_service import IncidentService
+from utils.time import to_iso
 
 incidents_bp = Blueprint('incidents', __name__)
 
@@ -14,7 +15,7 @@ def handle_incidents():
             "title": i.title,
             "status": i.status,
             "severity": i.severity,
-            "created_at": i.created_at.isoformat()
+            "created_at": to_iso(i.created_at)
         } for i in incidents]), 200
 
     elif request.method == 'POST':

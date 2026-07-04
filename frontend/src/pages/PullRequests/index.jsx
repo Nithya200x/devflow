@@ -85,7 +85,7 @@ export default function PullRequests() {
                     <FiUser size={14} /> {pr.author}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <FiCalendar size={14} /> Created: {new Date(pr.created_at).toLocaleDateString()}
+                    <FiCalendar size={14} /> Created: {new Date(pr.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                   </span>
                   <span>{pr.head_branch} → {pr.base_branch}</span>
                 </div>

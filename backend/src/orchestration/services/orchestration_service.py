@@ -107,6 +107,8 @@ class OrchestrationService:
         summary = self._build_summary(event, context)
         description = self._build_description(event, context, build_info)
 
+        project_id = event.metadata.get("project_id")
+
         incident = self.incident_service.create_incident(
             summary=summary,
             severity=severity,
@@ -118,6 +120,7 @@ class OrchestrationService:
             deployment_id=context.deployment,
             category=event.source,
             description=description,
+            project_id=project_id,
         )
 
         logger.info("=== EXECUTION ORDER: Incident created (%s) [1. Event → 2. Correlation → 3. Severity → 4. Incident creation] ===", incident.incident_id)
@@ -156,7 +159,11 @@ class OrchestrationService:
                 incident_id=incident.incident_id,
                 summary=summary,
                 severity=severity,
-                metadata={"repository": context.repository, "build_number": context.build_number},
+                metadata={
+                    "repository": context.repository,
+                    "build_number": context.build_number,
+                    "project_id": project_id,
+                },
             )
             self.event_service.dispatch(created_event)
             logger.info(f"IncidentCreated event published for {incident.incident_id}")

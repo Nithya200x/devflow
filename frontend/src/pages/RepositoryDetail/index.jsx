@@ -66,18 +66,6 @@ export default function RepositoryDetail() {
           if (info.status === 'failed') {
             setDeployError('Build failed');
           }
-          emitRef.current = setTimeout(async () => {
-            try {
-              await jenkinsService.emitBuildEvent(bNum, {
-                event_type: info.status === 'success' ? 'BUILD_SUCCEEDED' : 'BUILD_FAILED',
-                repository: repo?.name || '',
-                branch: repo?.default_branch || '',
-                commit_sha: latestCommit?.sha || '',
-                triggered_by: '',
-              });
-            } catch {}
-          }, 500);
-          return;
         }
       } catch {
         stopPolling();
@@ -87,7 +75,7 @@ export default function RepositoryDetail() {
     };
     check();
     pollRef.current = setInterval(check, 3000);
-  }, [repo, latestCommit]);
+  }, []);
 
   useEffect(() => {
     return () => stopPolling();
@@ -95,6 +83,7 @@ export default function RepositoryDetail() {
 
   const handleDeployClick = async () => {
     if (deployState === 'running' || deployState === 'queued') return;
+    if (!repo) return;
     setDeployState('queued');
     setDeployError(null);
     setQueueId(null);
@@ -103,9 +92,9 @@ export default function RepositoryDetail() {
     setShowDeployInfo(true);
     try {
       const res = await jenkinsService.triggerBuild({
-        repository: repo?.name || '',
-        branch: repo?.default_branch || '',
-        commit_sha: latestCommit?.sha || '',
+        repository: repo.name || '',
+        branch: repo.default_branch || '',
+        commit_sha: '',
         triggered_by: '',
       });
       const data = res.data;
@@ -244,8 +233,8 @@ export default function RepositoryDetail() {
         </div>
 
         <div className="repo-dates">
-          <span>Created: {repo.github_created_at ? new Date(repo.github_created_at).toLocaleDateString() : 'N/A'}</span>
-          <span>Updated: {repo.github_updated_at ? new Date(repo.github_updated_at).toLocaleDateString() : 'N/A'}</span>
+          <span>Created: {repo.github_created_at ? new Date(repo.github_created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}</span>
+          <span>Updated: {repo.github_updated_at ? new Date(repo.github_updated_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}</span>
         </div>
       </div>
 
@@ -341,24 +330,24 @@ export default function RepositoryDetail() {
               </div>
               <div className="deploy-info-item">
                 <span className="deploy-info-label">Latest Commit</span>
-                <span className="deploy-info-value">{latestCommit?.message?.slice(0, 50) || 'No commits yet'}</span>
+                <span className="deploy-info-value">{commits?.[0]?.message?.slice(0, 50) || 'No commits yet'}</span>
               </div>
               <div className="deploy-info-item">
                 <span className="deploy-info-label">Latest Commit SHA</span>
                 <span className="deploy-info-value">
-                  {latestCommit ? (
-                    <code>{latestCommit.sha?.slice(0, 7)}</code>
+                  {commits?.[0] ? (
+                    <code>{commits[0].sha?.slice(0, 7)}</code>
                   ) : 'N/A'}
                 </span>
               </div>
               <div className="deploy-info-item">
                 <span className="deploy-info-label">Latest Commit Author</span>
-                <span className="deploy-info-value">{latestCommit?.author_name || 'N/A'}</span>
+                <span className="deploy-info-value">{commits?.[0]?.author_name || 'N/A'}</span>
               </div>
               <div className="deploy-info-item">
                 <span className="deploy-info-label">Latest Commit Date</span>
                 <span className="deploy-info-value">
-                  {latestCommit?.date ? new Date(latestCommit.date).toLocaleString() : 'N/A'}
+                  {commits?.[0]?.date ? new Date(commits[0].date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}
                 </span>
               </div>
               <div className="deploy-info-item">
@@ -471,7 +460,7 @@ export default function RepositoryDetail() {
                       <p className="activity-meta">
                         <FiUser size={12} /> {c.author_name}
                         <FiClock size={12} style={{ marginLeft: '0.5rem' }} />
-                        {c.date ? new Date(c.date).toLocaleDateString() : ''}
+                        {c.date ? new Date(c.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}
                       </p>
                     </div>
                   </div>

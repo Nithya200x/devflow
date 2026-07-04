@@ -196,7 +196,7 @@ function IncidentAnalysisView({ incidentId, onBack }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 {meta.provider && <div>Provider: <strong>{meta.provider}</strong></div>}
                 {meta.model && <div>Model: <strong>{meta.model}</strong></div>}
-                {meta.analyzed_at && <div>Analyzed: <strong>{new Date(meta.analyzed_at).toLocaleString()}</strong></div>}
+                {meta.analyzed_at && <div>Analyzed: <strong>{new Date(meta.analyzed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong></div>}
                 {meta.prompt_version && <div>Prompt v: <strong>{meta.prompt_version}</strong></div>}
               </div>
             </Section>
@@ -265,7 +265,7 @@ function AnalysisCard({ analysis }) {
       )}
       {analysis.created_at && (
         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-          {new Date(analysis.created_at).toLocaleString()}
+          {new Date(analysis.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
         </div>
       )}
     </div>

@@ -116,7 +116,7 @@ export default function TimelineViewer() {
                         </div>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '—'}
+                        {entry.timestamp ? new Date(entry.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
                       </div>
                     </div>
 

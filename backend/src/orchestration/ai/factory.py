@@ -19,6 +19,7 @@ def create_ai_provider() -> AIProvider:
         timeout = current_app.config.get("AI_TIMEOUT", 120)
         if not key:
             logger.warning("GROQ_API_KEY is not set; Groq provider will not authenticate")
+        logger.info("AI Provider: groq | Model: %s | Timeout: %ds | Key set: %s", model, timeout, bool(key))
         return GroqProvider(api_key=key, model=model, timeout=timeout)
 
     if provider in ("openai", "openai-compatible"):

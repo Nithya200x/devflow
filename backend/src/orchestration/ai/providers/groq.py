@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Any, Dict, Optional
 
 import requests
@@ -7,6 +8,9 @@ import requests
 from orchestration.ai.providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
+
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_BACKOFFS = [5, 15, 30]
 
 
 class GroqProvider(AIProvider):
@@ -50,8 +54,10 @@ class GroqProvider(AIProvider):
         }
 
         use_json_mode = True
+        max_attempts = 2 + RATE_LIMIT_RETRIES
+        rate_limit_attempts = 0
 
-        for attempt in range(2):
+        for attempt in range(max_attempts):
             if use_json_mode:
                 payload["response_format"] = {"type": "json_object"}
             else:
@@ -70,6 +76,16 @@ class GroqProvider(AIProvider):
                     use_json_mode = False
                     continue
 
+                if resp.status_code == 429:
+                    rate_limit_attempts += 1
+                    if rate_limit_attempts <= RATE_LIMIT_RETRIES:
+                        backoff = RATE_LIMIT_BACKOFFS[rate_limit_attempts - 1]
+                        logger.warning("Groq rate limited (attempt %d/%d). Backing off %ds...", rate_limit_attempts, RATE_LIMIT_RETRIES, backoff)
+                        time.sleep(backoff)
+                        continue
+                    logger.error("Groq rate limited after %d retries. Giving up.", RATE_LIMIT_RETRIES)
+                    return None
+
                 resp.raise_for_status()
                 body = resp.json()
                 content = body["choices"][0]["message"]["content"]
@@ -79,6 +95,15 @@ class GroqProvider(AIProvider):
                 logger.error("Groq request timed out after %ds", t)
                 return None
             except requests.RequestException as e:
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    rate_limit_attempts += 1
+                    if rate_limit_attempts <= RATE_LIMIT_RETRIES:
+                        backoff = RATE_LIMIT_BACKOFFS[rate_limit_attempts - 1]
+                        logger.warning("Groq rate limited via exception (attempt %d/%d). Backing off %ds...", rate_limit_attempts, RATE_LIMIT_RETRIES, backoff)
+                        time.sleep(backoff)
+                        continue
+                    logger.error("Groq rate limited after %d retries. Giving up.", RATE_LIMIT_RETRIES)
+                    return None
                 logger.error("Groq request failed: %s", e)
                 return None
             except (json.JSONDecodeError, KeyError, IndexError) as e:

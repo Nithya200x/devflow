@@ -4,11 +4,22 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
 node_modules/
 dist/
 *.db
+*.sqlite
+*.sqlite3
 .pytest_cache/
 .DS_Store
 Thumbs.db
 devflow-main/
 *.log
+
+# Jenkins local artifacts
+jenkins-cli.jar
+jenkins-*.xml
+
+# Local reports
+ACCEPTANCE_REPORT.md

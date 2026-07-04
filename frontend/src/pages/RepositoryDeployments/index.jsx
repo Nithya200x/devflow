@@ -146,7 +146,7 @@ export default function RepositoryDeployments() {
                     <td>{b.result || '-'}</td>
                     <td>{formatDuration(b.duration_seconds)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {b.timestamp ? new Date(b.timestamp).toLocaleString() : '-'}
+                      {b.timestamp ? new Date(b.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-'}
                     </td>
                     <td>
                       {b.url && (

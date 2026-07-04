@@ -41,7 +41,7 @@ export default function Incidents() {
     { key: 'title', label: 'Title', render: (row) => <strong>{row.title}</strong> },
     { key: 'severity', label: 'Severity', render: (row) => <span className={`badge ${row.severity}`}>{row.severity}</span> },
     { key: 'status', label: 'Status', render: (row) => <span className={`badge ${row.status}`}>{row.status}</span> },
-    { key: 'created_at', label: 'Created', style: { color: 'var(--text-secondary)' }, render: (row) => new Date(row.created_at).toLocaleString() },
+    { key: 'created_at', label: 'Created', style: { color: 'var(--text-secondary)' }, render: (row) => new Date(row.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) },
     {
       key: 'actions', label: 'Actions',
       render: (row) => (

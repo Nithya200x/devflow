@@ -75,7 +75,7 @@ export default function Commits() {
                     <FiUser size={14} /> {c.author_name}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <FiCalendar size={14} /> {new Date(c.date).toLocaleString()}
+                    <FiCalendar size={14} /> {new Date(c.date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                   </span>
                 </div>
               </div>

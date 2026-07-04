@@ -12,7 +12,7 @@ export function LogViewer({ logs = [], title = 'Live Logs' }) {
         ) : (
           logs.map((log, i) => (
             <div key={i} className={`terminal-line ${log.includes('[ERROR]') ? 'terminal-error' : log.includes('[WARN]') ? 'terminal-warn' : 'terminal-info'}`}>
-              <span style={{ color: '#64748b' }}>[{new Date().toLocaleTimeString()}]</span> {log}
+              <span style={{ color: '#64748b' }}>[{new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}]</span> {log}
             </div>
           ))
         )}

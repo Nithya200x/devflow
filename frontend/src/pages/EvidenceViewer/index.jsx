@@ -80,7 +80,7 @@ export default function EvidenceViewer() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       <FiClock size={12} style={{ marginRight: '0.3rem' }} />
-                      {ev.collected_at ? new Date(ev.collected_at).toLocaleString() : '—'}
+                      {ev.collected_at ? new Date(ev.collected_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
                     </span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{ev.evidence_id}</span>
                   </div>

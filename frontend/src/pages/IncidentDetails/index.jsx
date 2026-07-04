@@ -112,11 +112,11 @@ export default function IncidentDetails() {
             </div>
             <div className="deploy-info-item">
               <span className="deploy-info-label">Created</span>
-              <span className="deploy-info-value">{incident.created_at ? new Date(incident.created_at).toLocaleString() : 'N/A'}</span>
+              <span className="deploy-info-value">{incident.created_at ? new Date(incident.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}</span>
             </div>
             <div className="deploy-info-item">
               <span className="deploy-info-label">Resolved</span>
-              <span className="deploy-info-value">{incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : '—'}</span>
+              <span className="deploy-info-value">{incident.resolved_at ? new Date(incident.resolved_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</span>
             </div>
           </div>
         </div>
@@ -173,7 +173,7 @@ export default function IncidentDetails() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <span className="badge neutral">{ev.source}</span>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                      {ev.collected_at ? new Date(ev.collected_at).toLocaleString() : ''}
+                      {ev.collected_at ? new Date(ev.collected_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}
                     </span>
                   </div>
                   {ev.source === 'jenkins' && (
@@ -241,7 +241,7 @@ export default function IncidentDetails() {
                     border: '2px solid var(--bg-color)',
                   }} />
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' }}>
-                    {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : ''}
+                    {entry.timestamp ? new Date(entry.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{entry.description}</div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>

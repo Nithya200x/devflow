@@ -74,6 +74,9 @@ def create_app():
     app.config['GROQ_API_KEY'] = Config.GROQ_API_KEY
     app.config['GROQ_MODEL'] = Config.GROQ_MODEL
     app.config['AI_TIMEOUT'] = Config.AI_TIMEOUT
+    app.config['AI_MAX_CONCURRENT_REQUESTS'] = Config.AI_MAX_CONCURRENT_REQUESTS
+    app.config['AI_RATE_LIMIT_BACKOFF'] = Config.AI_RATE_LIMIT_BACKOFF
+    app.config['AI_ANALYSIS_CACHE'] = Config.AI_ANALYSIS_CACHE
 
     CORS(app)
     db.init_app(app)
@@ -104,6 +107,17 @@ def create_app():
             seed_data()
         except Exception as e:
             logger.warning(f"Seed data skipped: {e}")
+
+        try:
+            from orchestration.ai.service import AIService
+            ai = AIService()
+            provider = ai._get_provider()
+            if provider:
+                logger.info("AI service initialized: provider=%s model=%s", provider.name(), provider.model_name())
+            else:
+                logger.warning("AI service initialized but no provider configured")
+        except Exception as e:
+            logger.warning("AI service init skipped: %s", e)
 
     logger.info(f"{Config.APP_NAME} v{Config.APP_VERSION} started")
     return app

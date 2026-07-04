@@ -4,6 +4,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+from utils.time import to_iso
+
 import kubernetes
 from kubernetes import client, config, watch
 from kubernetes.client.rest import ApiException
@@ -322,8 +324,8 @@ class KubernetesService:
                     "reason": e.reason,
                     "message": e.message,
                     "source": e.source.component if e.source else "",
-                    "first_timestamp": e.first_timestamp.isoformat() if e.first_timestamp else "",
-                    "last_timestamp": e.last_timestamp.isoformat() if e.last_timestamp else "",
+                    "first_timestamp": to_iso(e.first_timestamp) or "",
+                    "last_timestamp": to_iso(e.last_timestamp) or "",
                     "count": e.count,
                     "involved_object": {
                         "kind": e.involved_object.kind,
@@ -402,7 +404,7 @@ class KubernetesService:
                     "name": ns.metadata.name,
                     "status": ns.status.phase if ns.status else "",
                     "labels": ns.metadata.labels or {},
-                    "creation_timestamp": ns.metadata.creation_timestamp.isoformat() if ns.metadata.creation_timestamp else "",
+                    "creation_timestamp": to_iso(ns.metadata.creation_timestamp) or "",
                 }
                 for ns in nss
             ]
@@ -517,7 +519,7 @@ class KubernetesService:
                 state_detail = {}
                 if state.running:
                     state_reason = "Running"
-                    state_detail = {"started_at": state.running.started_at.isoformat() if state.running.started_at else ""}
+                    state_detail = {"started_at": to_iso(state.running.started_at) or ""}
                 elif state.waiting:
                     state_reason = state.waiting.reason or "Waiting"
                     state_detail = {"message": state.waiting.message or ""}
@@ -527,8 +529,8 @@ class KubernetesService:
                         "exit_code": state.terminated.exit_code,
                         "reason": state.terminated.reason or "",
                         "message": state.terminated.message or "",
-                        "started_at": state.terminated.started_at.isoformat() if state.terminated.started_at else "",
-                        "finished_at": state.terminated.finished_at.isoformat() if state.terminated.finished_at else "",
+                        "started_at": to_iso(state.terminated.started_at) or "",
+                        "finished_at": to_iso(state.terminated.finished_at) or "",
                     }
 
                 container_statuses.append({
@@ -551,7 +553,7 @@ class KubernetesService:
                     "status": c.status,
                     "reason": c.reason or "",
                     "message": c.message or "",
-                    "last_transition_time": c.last_transition_time.isoformat() if c.last_transition_time else "",
+                    "last_transition_time": to_iso(c.last_transition_time) or "",
                 })
 
         container_images = [c.image for c in (spec.containers or [])]
@@ -562,7 +564,7 @@ class KubernetesService:
 
         start_time = ""
         if status.start_time:
-            start_time = status.start_time.isoformat()
+            start_time = to_iso(status.start_time)
 
         return {
             "name": metadata.name,
@@ -601,7 +603,7 @@ class KubernetesService:
             "selector": spec.selector.match_labels if spec and spec.selector else {},
             "labels": metadata.labels or {},
             "annotations": metadata.annotations or {},
-            "creation_timestamp": metadata.creation_timestamp.isoformat() if metadata.creation_timestamp else "",
+            "creation_timestamp": to_iso(metadata.creation_timestamp) or "",
             "containers": [
                 {
                     "name": c.name,

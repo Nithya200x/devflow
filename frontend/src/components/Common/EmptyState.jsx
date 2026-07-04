@@ -1,10 +1,16 @@
 import { FiInbox } from 'react-icons/fi';
 
-export function EmptyState({ message = 'No data available', icon: Icon = FiInbox }) {
+export function EmptyState({ message = 'No data available', description, icon: Icon = FiInbox, action }) {
   return (
-    <div style={{ textAlign: 'center', padding: '3rem' }}>
-      <Icon size={40} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
-      <p style={{ color: 'var(--text-secondary)' }}>{message}</p>
+    <div className="empty-state">
+      <Icon size={36} />
+      <h3>{message}</h3>
+      {description && <p>{description}</p>}
+      {action && (
+        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }

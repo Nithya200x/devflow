@@ -125,7 +125,7 @@ export default function OrchestrationDashboard() {
               <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{latestIncident.summary}</p>
               {latestIncident.repository && <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{latestIncident.repository}{latestIncident.build_number ? ` · build #${latestIncident.build_number}` : ''}</p>}
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                {latestIncident.created_at ? new Date(latestIncident.created_at).toLocaleString() : ''}
+                {latestIncident.created_at ? new Date(latestIncident.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}
               </p>
             </div>
           ) : (

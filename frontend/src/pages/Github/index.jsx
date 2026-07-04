@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiGithub, FiLink, FiTrash2, FiStar, FiGitBranch, FiExternalLink, FiInfo, FiCheckCircle } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiGithub, FiLink, FiTrash2, FiStar, FiGitBranch, FiExternalLink, FiInfo, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
 import * as githubService from '../../services/githubService';
 import { RepositoryCard } from '../../components/Repository/RepositoryCard';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
@@ -7,6 +8,7 @@ import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
 
 export default function Github() {
+  const navigate = useNavigate();
   const [token, setToken] = useState('');
   const [status, setStatus] = useState(null);
   const [repos, setRepos] = useState([]);
