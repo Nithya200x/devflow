@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List
 
 from orchestration.collectors.base_collector import BaseEvidenceCollector
-from services.prometheus_service import PrometheusService
+from services.prometheus_service import prometheus_service
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class PrometheusEvidenceCollector(BaseEvidenceCollector):
     def __init__(self):
         super().__init__(source_name="prometheus")
-        self._prom = PrometheusService()
-        self._prom.connect()
+        prometheus_service.connect()
+        self._prom = prometheus_service
 
     def collect_evidence(self, context: Dict[str, Any]) -> Dict[str, Any]:
         pod_name = context.get("pod_name", "")

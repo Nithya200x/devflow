@@ -1,19 +1,18 @@
 import logging
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from services.prometheus_service import PrometheusService
+from services.prometheus_service import prometheus_service
 
 logger = logging.getLogger(__name__)
 
 prometheus_bp = Blueprint("prometheus", __name__)
 
-_prom = PrometheusService()
-
 
 @prometheus_bp.route("/health", methods=["GET"])
 @jwt_required()
 def health():
-    status = _prom.health_check()
+    logger.info("prom health service id=%s connected=%s", id(prometheus_service), prometheus_service._connected)
+    status = prometheus_service.health_check()
     return jsonify(status), 200 if status.get("connected") else 503
 
 
@@ -23,7 +22,7 @@ def query():
     data = request.get_json()
     if not data or "query" not in data:
         return jsonify({"msg": "query is required"}), 400
-    result = _prom.query(data["query"])
+    result = prometheus_service.query(data["query"])
     return jsonify(result), 200
 
 
@@ -33,7 +32,7 @@ def query_range():
     data = request.get_json()
     if not data or "query" not in data:
         return jsonify({"msg": "query is required"}), 400
-    result = _prom.range_query(
+    result = prometheus_service.range_query(
         query=data["query"],
         start=data.get("start", ""),
         end=data.get("end", ""),
@@ -47,7 +46,7 @@ def query_range():
 def cpu_metrics():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_cpu_metrics(namespace, pod)), 200
+    return jsonify(prometheus_service.get_cpu_metrics(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/memory", methods=["GET"])
@@ -55,7 +54,7 @@ def cpu_metrics():
 def memory_metrics():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_memory_metrics(namespace, pod)), 200
+    return jsonify(prometheus_service.get_memory_metrics(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/disk", methods=["GET"])
@@ -63,7 +62,7 @@ def memory_metrics():
 def disk_metrics():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_disk_metrics(namespace, pod)), 200
+    return jsonify(prometheus_service.get_disk_metrics(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/network", methods=["GET"])
@@ -71,7 +70,7 @@ def disk_metrics():
 def network_metrics():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_network_metrics(namespace, pod)), 200
+    return jsonify(prometheus_service.get_network_metrics(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/pod", methods=["GET"])
@@ -79,14 +78,14 @@ def network_metrics():
 def pod_metrics():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_pod_metrics(namespace, pod)), 200
+    return jsonify(prometheus_service.get_pod_metrics(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/node", methods=["GET"])
 @jwt_required()
 def node_metrics():
     node = request.args.get("node", "")
-    return jsonify(_prom.get_node_metrics(node)), 200
+    return jsonify(prometheus_service.get_node_metrics(node)), 200
 
 
 @prometheus_bp.route("/metrics/deployment", methods=["GET"])
@@ -94,7 +93,7 @@ def node_metrics():
 def deployment_metrics():
     namespace = request.args.get("namespace", "")
     deployment = request.args.get("deployment", "")
-    return jsonify(_prom.get_deployment_metrics(namespace, deployment)), 200
+    return jsonify(prometheus_service.get_deployment_metrics(namespace, deployment)), 200
 
 
 @prometheus_bp.route("/metrics/service", methods=["GET"])
@@ -102,7 +101,7 @@ def deployment_metrics():
 def service_metrics():
     namespace = request.args.get("namespace", "")
     service = request.args.get("service", "")
-    return jsonify(_prom.get_service_metrics(namespace, service)), 200
+    return jsonify(prometheus_service.get_service_metrics(namespace, service)), 200
 
 
 @prometheus_bp.route("/metrics/error-rate", methods=["GET"])
@@ -110,7 +109,7 @@ def service_metrics():
 def error_rate():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_error_rate(namespace, pod)), 200
+    return jsonify(prometheus_service.get_error_rate(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/request-rate", methods=["GET"])
@@ -118,7 +117,7 @@ def error_rate():
 def request_rate():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_request_rate(namespace, pod)), 200
+    return jsonify(prometheus_service.get_request_rate(namespace, pod)), 200
 
 
 @prometheus_bp.route("/metrics/latency", methods=["GET"])
@@ -126,11 +125,11 @@ def request_rate():
 def latency():
     namespace = request.args.get("namespace", "")
     pod = request.args.get("pod", "")
-    return jsonify(_prom.get_latency(namespace, pod)), 200
+    return jsonify(prometheus_service.get_latency(namespace, pod)), 200
 
 
 @prometheus_bp.route("/alerts", methods=["GET"])
 @jwt_required()
 def list_alerts():
-    alerts = _prom.list_active_alerts()
+    alerts = prometheus_service.list_active_alerts()
     return jsonify({"alerts": alerts, "count": len(alerts)}), 200

@@ -296,3 +296,6 @@ class PrometheusService:
         except Exception as e:
             logger.debug(f"Failed to parse alerts: {e}")
         return alerts
+
+
+prometheus_service = PrometheusService()

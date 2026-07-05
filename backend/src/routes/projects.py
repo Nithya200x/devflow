@@ -141,7 +141,7 @@ def project_overview(project_id):
     from services.github_service import GitHubService
     from services.docker_service import DockerService
     from services.kubernetes_service import KubernetesService
-    from services.prometheus_service import PrometheusService
+    from services.prometheus_service import prometheus_service
     from services.grafana_service import GrafanaService
     from services.alertmanager_service import AlertmanagerService
     from services.jenkins_service import JenkinsService
@@ -285,7 +285,7 @@ def project_overview(project_id):
     overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured", "configured": bool(Config.PROMETHEUS_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None, "has_kubernetes_metrics": False}
     if Config.PROMETHEUS_URL:
         try:
-            ps = PrometheusService()
+            ps = prometheus_service
             ps.connect()
             if ps.connected:
                 overview["prometheus"]["service_status"] = "connected"
@@ -644,8 +644,8 @@ def project_health(project_id):
     from config.config import Config
     if Config.PROMETHEUS_URL:
         try:
-            from services.prometheus_service import PrometheusService
-            ps = PrometheusService()
+            from services.prometheus_service import prometheus_service
+            ps = prometheus_service
             if hasattr(ps, 'connect'):
                 ps.connect()
             h = ps.query("up")
