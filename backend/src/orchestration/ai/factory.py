@@ -30,7 +30,7 @@ def create_ai_provider() -> AIProvider:
         return OpenAIProvider(api_key=key, model=model, api_base=api_base, timeout=timeout)
 
     if provider in ("ollama", "lmstudio"):
-        url = current_app.config.get("OLLAMA_URL", "http://localhost:11434")
+        url = current_app.config.get("OLLAMA_URL", "")
         model = current_app.config.get("OLLAMA_MODEL", "llama3")
         timeout = current_app.config.get("AI_TIMEOUT", 120)
         return OllamaProvider(base_url=url, model=model, timeout=timeout)

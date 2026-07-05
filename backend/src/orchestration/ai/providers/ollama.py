@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class OllamaProvider(AIProvider):
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
+        base_url: str = "",
         model: str = "llama3",
         timeout: int = 120,
     ):
