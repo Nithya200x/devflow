@@ -41,6 +41,11 @@ class PrometheusService:
             self._session.headers.update({"Authorization": f"Bearer {self._token}"})
         elif self._username and self._password:
             self._session.auth = (self._username, self._password)
+        elif "grafana" in self._base_url:
+            logger.warning(
+                "Grafana Cloud Prometheus URL configured but PROMETHEUS_USERNAME and "
+                "PROMETHEUS_PASSWORD are not set — queries will be rejected"
+            )
 
     def connect(self) -> bool:
         if not self._base_url:

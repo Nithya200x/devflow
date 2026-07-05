@@ -28,6 +28,10 @@ services:
         value: groq
       - key: PROMETHEUS_URL
         sync: false
+      - key: PROMETHEUS_USERNAME
+        sync: false
+      - key: PROMETHEUS_PASSWORD
+        sync: false
       - key: GRAFANA_URL
         sync: false
       - key: JENKINS_URL
