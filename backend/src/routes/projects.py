@@ -150,7 +150,7 @@ def project_overview(project_id):
     overview = {"project": {"id": project.id, "name": project.name, "full_name": project.full_name, "owner": project.github_owner, "html_url": project.html_url, "default_branch": project.default_branch, "description": project.description, "language": project.language, "visibility": project.visibility, "topics": project.topics.split(",") if project.topics else []}}
 
     # GitHub
-    overview["github"] = {"connected": True, "stars": project.stars, "forks": project.forks, "default_branch": project.default_branch, "language": project.language}
+    overview["github"] = {"connected": True, "service_status": "connected", "stars": project.stars, "forks": project.forks, "default_branch": project.default_branch, "language": project.language}
     try:
         if user and user.github_token:
             token = decrypt_token(user.github_token)
@@ -186,12 +186,14 @@ def project_overview(project_id):
                 logger.warning(f"GitHub stats fetch error: {e}")
         else:
             overview["github"]["error"] = "GitHub token not configured"
+            overview["github"]["service_status"] = "not_configured"
     except Exception as e:
         logger.warning(f"GitHub overview error: {e}")
         overview["github"]["error"] = str(e)
+        overview["github"]["service_status"] = "unavailable"
 
     # Jenkins
-    overview["jenkins"] = {"connected": bool(project.jenkins_job_name)}
+    overview["jenkins"] = {"connected": bool(project.jenkins_job_name), "service_status": "not_configured"}
     if project.jenkins_job_name:
         try:
             js = JenkinsService()
@@ -202,15 +204,17 @@ def project_overview(project_id):
                 "job_name": project.jenkins_job_name,
                 "build_history": history.get("builds", []) if isinstance(history, dict) else [],
                 "last_build": history.get("builds", [None])[0] if isinstance(history, dict) and history.get("builds") else None,
+                "service_status": "connected",
             })
         except Exception as e:
             logger.warning(f"Jenkins overview error: {e}")
             overview["jenkins"]["error"] = str(e)
+            overview["jenkins"]["service_status"] = "unavailable"
     else:
         overview["jenkins"]["healthy"] = False
 
     # Docker
-    overview["docker"] = {"connected": bool(project.docker_container)}
+    overview["docker"] = {"connected": bool(project.docker_container), "service_status": "not_configured"}
     if project.docker_container:
         try:
             ds = DockerService()
@@ -223,6 +227,7 @@ def project_overview(project_id):
                 "status": container["Status"] if container else "not found",
                 "image": container["Image"] if container else project.docker_image or "",
                 "container_status": container.get("State", "not_found") if container else "not_found",
+                "service_status": "connected",
             })
             if container:
                 try:
@@ -238,11 +243,12 @@ def project_overview(project_id):
         except Exception as e:
             logger.warning(f"Docker overview error: {e}")
             overview["docker"]["error"] = str(e)
+            overview["docker"]["service_status"] = "unavailable"
     else:
         overview["docker"]["running"] = False
 
     # Kubernetes
-    overview["kubernetes"] = {"connected": bool(project.kubernetes_namespace and project.kubernetes_deployment)}
+    overview["kubernetes"] = {"connected": bool(project.kubernetes_namespace and project.kubernetes_deployment), "service_status": "not_configured"}
     if project.kubernetes_namespace and project.kubernetes_deployment:
         try:
             ks = KubernetesService()
@@ -256,40 +262,41 @@ def project_overview(project_id):
                 "pods": [{"name": p["metadata"]["name"], "status": p["status"]["phase"], "ready": all(c["ready"] for c in p["status"].get("containerStatuses", []))} for p in pods] if pods else [],
                 "ready_pods": sum(1 for p in pods if all(c["ready"] for c in p["status"].get("containerStatuses", []))) if pods else 0,
                 "total_pods": len(pods) if pods else 0,
+                "service_status": "connected",
             })
         except Exception as e:
             logger.warning(f"K8s overview error: {e}")
             overview["kubernetes"]["error"] = str(e)
+            overview["kubernetes"]["service_status"] = "unavailable"
     else:
         overview["kubernetes"]["deployment"] = project.kubernetes_deployment or ""
 
     # Prometheus
-    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL)}
+    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured"}
     if Config.PROMETHEUS_URL:
         try:
             ps = PrometheusService()
-            if hasattr(ps, 'connect'):
-                ps.connect()
-            query_labels = project.prometheus_labels or ""
-            ns_filter = f"{{namespace='{project.kubernetes_namespace}'}}" if project.kubernetes_namespace else ""
-            overview["prometheus"].update({
-                "labels": query_labels,
-                "healthy": True,
-            })
-            try:
-                overview["prometheus"]["cpu_usage"] = ps.query(f"avg(rate(container_cpu_usage_seconds_total{ns_filter}[5m])) * 100") if ns_filter else None
-            except Exception:
-                overview["prometheus"]["cpu_usage"] = None
-            try:
-                overview["prometheus"]["memory_usage"] = ps.query(f"avg(container_memory_working_set_bytes{ns_filter}) / 1024 / 1024") if ns_filter else None
-            except Exception:
-                overview["prometheus"]["memory_usage"] = None
-            try:
-                alerts = ps.get_alerts()
-                firing = [a for a in (alerts.get("data", {}).get("alerts", []) if isinstance(alerts, dict) else []) if a.get("state") == "firing"]
-                overview["prometheus"]["active_alerts"] = len(firing)
-            except Exception:
-                overview["prometheus"]["active_alerts"] = 0
+            ps.connect()
+            if ps.connected:
+                overview["prometheus"]["service_status"] = "connected"
+                overview["prometheus"]["healthy"] = True
+                query_labels = project.prometheus_labels or ""
+                ns_filter = f"{{namespace='{project.kubernetes_namespace}'}}" if project.kubernetes_namespace else ""
+                overview["prometheus"].update({"labels": query_labels})
+                try:
+                    overview["prometheus"]["cpu_usage"] = ps.query(f"avg(rate(container_cpu_usage_seconds_total{ns_filter}[5m])) * 100") if ns_filter else None
+                except Exception:
+                    overview["prometheus"]["cpu_usage"] = None
+                try:
+                    overview["prometheus"]["memory_usage"] = ps.query(f"avg(container_memory_working_set_bytes{ns_filter}) / 1024 / 1024") if ns_filter else None
+                except Exception:
+                    overview["prometheus"]["memory_usage"] = None
+                try:
+                    alerts = ps.get_alerts()
+                    firing = [a for a in (alerts.get("data", {}).get("alerts", []) if isinstance(alerts, dict) else []) if a.get("state") == "firing"]
+                    overview["prometheus"]["active_alerts"] = len(firing)
+                except Exception:
+                    overview["prometheus"]["active_alerts"] = 0
         except Exception as e:
             logger.warning(f"Prometheus overview error: {e}")
             overview["prometheus"]["error"] = str(e)
@@ -298,23 +305,27 @@ def project_overview(project_id):
         overview["prometheus"]["healthy"] = False
 
     # Grafana
-    overview["grafana"] = {"connected": bool(Config.GRAFANA_URL)}
+    overview["grafana"] = {"connected": bool(Config.GRAFANA_URL), "service_status": "not_configured"}
     if Config.GRAFANA_URL:
         try:
             gs = GrafanaService()
-            dashboards = gs.list_dashboards()
-            matched = None
-            if project.grafana_dashboard:
-                matched = [d for d in (dashboards or []) if project.grafana_dashboard.lower() in d.get("title", "").lower() or project.grafana_dashboard.lower() in d.get("uid", "").lower()]
-            overview["grafana"].update({
-                "dashboard_uid": matched[0]["uid"] if matched else None,
-                "dashboard_title": matched[0]["title"] if matched else project.grafana_dashboard or "",
-                "dashboard_url": f"{Config.GRAFANA_URL}/d/{matched[0]['uid']}" if matched else None,
-                "dashboards_count": len(dashboards or []),
-            })
+            gs.connect()
+            if gs.connected:
+                dashboards = gs.list_dashboards()
+                matched = None
+                if project.grafana_dashboard:
+                    matched = [d for d in (dashboards or []) if project.grafana_dashboard.lower() in d.get("title", "").lower() or project.grafana_dashboard.lower() in d.get("uid", "").lower()]
+                overview["grafana"].update({
+                    "dashboard_uid": matched[0]["uid"] if matched else None,
+                    "dashboard_title": matched[0]["title"] if matched else project.grafana_dashboard or "",
+                    "dashboard_url": f"{Config.GRAFANA_URL}/d/{matched[0]['uid']}" if matched else None,
+                    "dashboards_count": len(dashboards or []),
+                    "service_status": "connected",
+                })
         except Exception as e:
             logger.warning(f"Grafana overview error: {e}")
             overview["grafana"]["error"] = str(e)
+            overview["grafana"]["service_status"] = "unavailable"
     else:
         overview["grafana"]["dashboard_title"] = project.grafana_dashboard or ""
 

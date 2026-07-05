@@ -32,46 +32,43 @@ function ScoreRing({ value, label, sublabel, color = '#8b5cf6' }) {
   );
 }
 
+const STATUS_MAP = {
+  connected: 'success',
+  ready: 'active',
+  not_configured: 'pending',
+  unavailable: 'error',
+};
+
 const SERVICE_COLLECTORS = [
   {
     key: 'GitHub', icon: FiGithub, label: 'GitHub Connection',
-    getStatus: (o) => o.github?.connected && !o.github?.error ? 'success' : (o.github?.error ? 'error' : 'pending'),
-    getMessage: (o) => o.github?.latest_commit ? 'Repository synced' : (o.github?.error ? 'Sync error' : 'Connecting to GitHub API...'),
+    getStatus: (o) => STATUS_MAP[o.github?.service_status] || 'pending',
+    getMessage: (o) => o.github?.latest_commit ? 'Repository synced' : (o.github?.error || 'Configure a GitHub token to enable sync'),
   },
   {
     key: 'Jenkins', icon: FiTerminal, label: 'Jenkins Pipeline',
-    getStatus: (o) => o.jenkins?.connected && o.jenkins?.healthy ? 'success' : (o.jenkins?.connected ? (o.jenkins?.error ? 'error' : 'pending') : 'pending'),
-    getMessage: (o) => o.jenkins?.job_name ? `Pipeline: ${o.jenkins.job_name}` : 'No pipeline configured',
+    getStatus: (o) => STATUS_MAP[o.jenkins?.service_status] || 'pending',
+    getMessage: (o) => o.jenkins?.job_name ? (o.jenkins?.healthy ? `Pipeline: ${o.jenkins.job_name}` : 'Pipeline configured, unreachable') : 'Connect Jenkins credentials to enable pipelines',
   },
   {
     key: 'Docker', icon: FiBox, label: 'Docker Container Scan',
-    getStatus: (o) => o.docker?.connected && o.docker?.running ? 'success' : (o.docker?.connected ? (o.docker?.error ? 'error' : 'warning') : 'pending'),
-    getMessage: (o) => o.docker?.container_name ? `Container: ${o.docker.container_name} ${o.docker.running ? 'running' : 'stopped'}` : 'No container configured',
+    getStatus: (o) => STATUS_MAP[o.docker?.service_status] || 'pending',
+    getMessage: (o) => o.docker?.container_name ? (o.docker?.running ? `Container: ${o.docker.container_name} running` : `Container: ${o.docker.container_name} stopped`) : 'Connect a Docker host to enable scans',
   },
   {
     key: 'Kubernetes', icon: FiServer, label: 'Kubernetes Analysis',
-    getStatus: (o) => {
-      if (!o.kubernetes?.connected) return 'pending';
-      const k = o.kubernetes;
-      if (!k.deployment) return 'pending';
-      return k.ready_pods === k.total_pods && k.total_pods > 0 ? 'success' : 'warning';
-    },
-    getMessage: (o) => {
-      if (!o.kubernetes?.connected || !o.kubernetes?.deployment) return 'No deployment linked';
-      const k = o.kubernetes;
-      if (k.total_pods === 0) return 'Deployment configured, awaiting pods';
-      return `${k.ready_pods || 0}/${k.total_pods || 0} pods ready`;
-    },
+    getStatus: (o) => STATUS_MAP[o.kubernetes?.service_status] || 'pending',
+    getMessage: (o) => o.kubernetes?.deployment ? (o.kubernetes?.total_pods > 0 ? `${o.kubernetes.ready_pods || 0}/${o.kubernetes.total_pods || 0} pods ready` : 'Deployment found, awaiting pods') : 'Connect a cluster to enable analysis',
   },
   {
     key: 'Prometheus', icon: FiBarChart2, label: 'Prometheus Metrics',
-    getStatus: (o) => o.prometheus?.healthy ? 'success' : (o.prometheus?.error ? 'error' : 'pending'),
-    getMessage: (o) => o.prometheus?.healthy ? 'Metrics streaming' : (o.prometheus?.error || 'Waiting for metrics'),
+    getStatus: (o) => o.prometheus?.healthy ? 'success' : 'pending',
+    getMessage: (o) => o.prometheus?.healthy ? 'Metrics streaming' : 'Prometheus not configured',
   },
   {
     key: 'Grafana', icon: FiActivity, label: 'Grafana Dashboard',
-    getStatus: (o) => o.grafana?.dashboard_uid ? 'success' : (o.grafana?.connected ? 'pending' : 'pending'),
-    getMessage: (o) => o.grafana?.dashboard_title ? `Dashboard: ${o.grafana.dashboard_title}` : 'No dashboard linked',
+    getStatus: (o) => STATUS_MAP[o.grafana?.service_status] || 'pending',
+    getMessage: (o) => o.grafana?.dashboard_title ? `Dashboard: ${o.grafana.dashboard_title}` : 'Connect Grafana API key to enable dashboards',
   },
   {
     key: 'AI', icon: FiCpu, label: 'AI Root Cause Engine',
@@ -108,7 +105,7 @@ function DevFlowTimeline({ overview }) {
                   </span>
                   <span className="collector-label">{svc.label}</span>
                   <span className={`collector-badge ${status}`}>
-                    {status === 'success' ? 'Connected' : status === 'warning' ? 'Warning' : status === 'error' ? 'Error' : status === 'active' ? 'Ready' : 'Pending'}
+                    {status === 'success' ? 'Connected' : status === 'error' ? 'Unavailable' : status === 'active' ? 'Ready' : 'Not Configured'}
                   </span>
                 </div>
                 <div className="collector-message">{message}</div>
