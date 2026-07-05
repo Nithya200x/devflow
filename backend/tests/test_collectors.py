@@ -269,6 +269,38 @@ class TestPrometheusHealthCheckEndpoint:
         assert result["connected"] is False
         assert "not configured" in result["error"]
 
+    def test_health_check_auth_flow(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        os.environ["PROMETHEUS_USERNAME"] = "testuser"
+        os.environ["PROMETHEUS_PASSWORD"] = "testpass"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock, patch
+
+        with patch("services.prometheus_service.requests.Session") as mock_session_class:
+            mock_session = MagicMock()
+            mock_session_class.return_value = mock_session
+
+            def mock_get(url, **kw):
+                resp = MagicMock()
+                if "buildinfo" in url:
+                    resp.status_code = 200
+                    resp.json.return_value = {"status": "success", "data": {"version": "vr400-58306691"}}
+                else:
+                    resp.status_code = 200
+                    resp.json.return_value = {"status": "success", "data": {"result": [{"metric": {}, "value": [1, "1"]}]}}
+                return resp
+            mock_session.get.side_effect = mock_get
+
+            ps = PrometheusService()
+            result = ps.health_check()
+
+        assert result["connected"] is True
+        assert result["has_metrics"] is True
+        assert result["error"] is None
+        assert ps._session is not None
+        assert ps._session.auth == ("testuser", "testpass")
+        assert ps._version == "vr400-58306691"
+
 
 class TestPrometheusConnect:
     def test_connect_fails_when_buildinfo_returns_530_and_up_also_fails(self):
