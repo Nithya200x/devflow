@@ -13,28 +13,42 @@ class PrometheusServiceError(Exception):
 
 class PrometheusService:
     def __init__(self):
-        self._base_url = os.getenv("PROMETHEUS_URL", "").rstrip("/")
+        raw = os.getenv("PROMETHEUS_URL", "").rstrip("/")
         self._username = os.getenv("PROMETHEUS_USERNAME", "")
         self._password = os.getenv("PROMETHEUS_PASSWORD", "")
         self._token = os.getenv("PROMETHEUS_TOKEN", "")
+        self._base_url = self._normalize_url(raw)
         self._connected = False
         self._version = ""
         self._session: Optional[requests.Session] = None
         self._connect_time = 0.0
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        if not url:
+            return url
+        url = url.rstrip("/")
+        if "grafana" in url and "/api/prom" not in url:
+            url = url + "/api/prom"
+        return url
+
+    def _setup_session(self):
+        self._session = requests.Session()
+        self._session.headers.update({"Accept": "application/json"})
+        if self._token:
+            self._session.headers.update({"Authorization": f"Bearer {self._token}"})
+        elif self._username and self._password:
+            self._session.auth = (self._username, self._password)
 
     def connect(self) -> bool:
         if not self._base_url:
             logger.warning("PROMETHEUS_URL not set")
             self._connected = False
             return False
-        try:
-            self._session = requests.Session()
-            self._session.headers.update({"Accept": "application/json"})
-            if self._token:
-                self._session.headers.update({"Authorization": f"Bearer {self._token}"})
-            elif self._username and self._password:
-                self._session.auth = (self._username, self._password)
 
+        self._setup_session()
+
+        try:
             resp = self._session.get(f"{self._base_url}/api/v1/status/buildinfo", timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
@@ -45,10 +59,26 @@ class PrometheusService:
             self._connect_time = time.time()
             logger.info(f"Prometheus connected: {self._base_url} v{self._version}")
             return True
+        except requests.RequestException:
+            pass
+
+        try:
+            resp = self._session.get(
+                f"{self._base_url}/api/v1/query",
+                params={"query": "up"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                self._connected = True
+                self._version = "unknown"
+                self._connect_time = time.time()
+                logger.info("Prometheus connected via up query")
+                return True
         except requests.RequestException as e:
-            self._connected = False
             logger.info("Prometheus connection failed: %s", e)
-            return False
+
+        self._connected = False
+        return False
 
     @property
     def connected(self) -> bool:
@@ -211,8 +241,10 @@ class PrometheusService:
         if not self._base_url:
             return {"connected": False, "error": "PROMETHEUS_URL not configured", "version": "", "latency_ms": 0}
         try:
+            if not self._session:
+                self._setup_session()
             start = time.time()
-            resp = requests.get(f"{self._base_url}/api/v1/status/buildinfo", timeout=5)
+            resp = self._session.get(f"{self._base_url}/api/v1/status/buildinfo", timeout=5)
             elapsed = (time.time() - start) * 1000
             if resp.status_code == 200:
                 data = resp.json()

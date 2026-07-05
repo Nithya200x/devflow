@@ -36,6 +36,14 @@ def validate_environment():
     ]:
         if not os.getenv(var):
             warnings.append(f"{label} integration not configured (env var {var} not set)")
+    # Prometheus startup diagnostics
+    prom_url = bool(os.getenv("PROMETHEUS_URL"))
+    prom_user = bool(os.getenv("PROMETHEUS_USERNAME"))
+    prom_pass = bool(os.getenv("PROMETHEUS_PASSWORD"))
+    logger.info("Prometheus URL configured: %s", prom_url)
+    logger.info("Prometheus username configured: %s", prom_user)
+    logger.info("Prometheus password configured: %s", prom_pass)
+
     for w in warnings:
         if "JWT_SECRET_KEY" in w or "TOKEN_ENCRYPTION_KEY" in w:
             logger.warning("Config: %s", w)

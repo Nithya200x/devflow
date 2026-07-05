@@ -105,7 +105,11 @@ function DevFlowTimeline({ overview }) {
         } else if (isError) {
           message = errorMessage || 'Connection failed';
         } else if (isConnected) {
-          message = lastChecked ? `Last checked: ${timeAgo(lastChecked)}` : 'Connected';
+          if (svc.key === 'prometheus' && overview.prometheus?.has_kubernetes_metrics === false) {
+            message = lastChecked ? `Connected - waiting for metrics (${timeAgo(lastChecked)})` : 'Connected - waiting for metrics';
+          } else {
+            message = lastChecked ? `Last checked: ${timeAgo(lastChecked)}` : 'Connected';
+          }
         } else {
           message = 'Waiting...';
         }

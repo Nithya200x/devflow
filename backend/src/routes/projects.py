@@ -282,30 +282,42 @@ def project_overview(project_id):
         overview["kubernetes"]["deployment"] = project.kubernetes_deployment or ""
 
     # Prometheus
-    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured", "configured": bool(Config.PROMETHEUS_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
+    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured", "configured": bool(Config.PROMETHEUS_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None, "has_kubernetes_metrics": False}
     if Config.PROMETHEUS_URL:
         try:
             ps = PrometheusService()
             ps.connect()
             if ps.connected:
                 overview["prometheus"]["service_status"] = "connected"
-                overview["prometheus"]["healthy"] = True
                 overview["prometheus"]["last_checked"] = datetime.datetime.utcnow().isoformat()
                 query_labels = project.prometheus_labels or ""
-                ns_filter = f"{{namespace='{project.kubernetes_namespace}'}}" if project.kubernetes_namespace else ""
                 overview["prometheus"].update({"labels": query_labels})
+                up_result = ps.query("up")
+                up_healthy = (
+                    up_result.get("status") == "success"
+                    and bool(up_result.get("data", {}).get("result"))
+                )
+                overview["prometheus"]["healthy"] = up_healthy
+                if up_healthy:
+                    ns_filter = f"{{namespace='{project.kubernetes_namespace}'}}" if project.kubernetes_namespace else ""
+                    if ns_filter:
+                        ns_up = ps.query(f'up{{namespace="{project.kubernetes_namespace}"}}')
+                        has_k8s = bool(ns_up.get("data", {}).get("result"))
+                        overview["prometheus"]["has_kubernetes_metrics"] = has_k8s
+                        try:
+                            overview["prometheus"]["cpu_usage"] = ps.query(f"avg(rate(container_cpu_usage_seconds_total{ns_filter}[5m])) * 100")
+                        except Exception:
+                            overview["prometheus"]["cpu_usage"] = None
+                        try:
+                            overview["prometheus"]["memory_usage"] = ps.query(f"avg(container_memory_working_set_bytes{ns_filter}) / 1024 / 1024")
+                        except Exception:
+                            overview["prometheus"]["memory_usage"] = None
+                    else:
+                        overview["prometheus"]["cpu_usage"] = None
+                        overview["prometheus"]["memory_usage"] = None
                 try:
-                    overview["prometheus"]["cpu_usage"] = ps.query(f"avg(rate(container_cpu_usage_seconds_total{ns_filter}[5m])) * 100") if ns_filter else None
-                except Exception:
-                    overview["prometheus"]["cpu_usage"] = None
-                try:
-                    overview["prometheus"]["memory_usage"] = ps.query(f"avg(container_memory_working_set_bytes{ns_filter}) / 1024 / 1024") if ns_filter else None
-                except Exception:
-                    overview["prometheus"]["memory_usage"] = None
-                try:
-                    alerts = ps.get_alerts()
-                    firing = [a for a in (alerts.get("data", {}).get("alerts", []) if isinstance(alerts, dict) else []) if a.get("state") == "firing"]
-                    overview["prometheus"]["active_alerts"] = len(firing)
+                    alerts = ps.list_active_alerts()
+                    overview["prometheus"]["active_alerts"] = len(alerts)
                 except Exception:
                     overview["prometheus"]["active_alerts"] = 0
         except Exception as e:
