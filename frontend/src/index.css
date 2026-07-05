@@ -1232,6 +1232,22 @@ tr:hover td {
   margin-left: 1.75rem;
 }
 
+.collector-connect-btn {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 1.75rem;
+}
+
+.collector-connect-btn:hover {
+  border-color: var(--accent-violet);
+  color: var(--accent-violet);
+  background: rgba(139, 92, 246, 0.06);
+}
+
 /* ===================== AI SCORE CIRCLE ===================== */
 
 .score-ring {

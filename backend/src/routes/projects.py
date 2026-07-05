@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import User, ConnectedProject, GitRepository, Incident
@@ -150,9 +152,10 @@ def project_overview(project_id):
     overview = {"project": {"id": project.id, "name": project.name, "full_name": project.full_name, "owner": project.github_owner, "html_url": project.html_url, "default_branch": project.default_branch, "description": project.description, "language": project.language, "visibility": project.visibility, "topics": project.topics.split(",") if project.topics else []}}
 
     # GitHub
-    overview["github"] = {"connected": True, "service_status": "connected", "stars": project.stars, "forks": project.forks, "default_branch": project.default_branch, "language": project.language}
-    try:
-        if user and user.github_token:
+    now = datetime.datetime.utcnow().isoformat()
+    overview["github"] = {"connected": True, "service_status": "not_configured", "configured": bool(user and user.github_token), "last_checked": now, "error_message": None, "stars": project.stars, "forks": project.forks, "default_branch": project.default_branch, "language": project.language}
+    if user and user.github_token:
+        try:
             token = decrypt_token(user.github_token)
             auth = PATGitHubAuth(token)
             gh = GitHubService(auth)
@@ -184,16 +187,17 @@ def project_overview(project_id):
                 overview["github"]["language"] = repo_data.get("repo", {}).get("language", project.language) or project.language
             except Exception as e:
                 logger.warning(f"GitHub stats fetch error: {e}")
-        else:
-            overview["github"]["error"] = "GitHub token not configured"
-            overview["github"]["service_status"] = "not_configured"
-    except Exception as e:
-        logger.warning(f"GitHub overview error: {e}")
-        overview["github"]["error"] = str(e)
-        overview["github"]["service_status"] = "unavailable"
+            overview["github"]["service_status"] = "connected"
+        except Exception as e:
+            logger.warning(f"GitHub overview error: {e}")
+            overview["github"]["error_message"] = str(e)
+            overview["github"]["service_status"] = "unavailable"
+            overview["github"]["last_checked"] = datetime.datetime.utcnow().isoformat()
+    else:
+        overview["github"]["error_message"] = "GitHub token not configured"
 
     # Jenkins
-    overview["jenkins"] = {"connected": bool(project.jenkins_job_name), "service_status": "not_configured"}
+    overview["jenkins"] = {"connected": bool(project.jenkins_job_name), "service_status": "not_configured", "configured": bool(project.jenkins_job_name), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if project.jenkins_job_name:
         try:
             js = JenkinsService()
@@ -205,16 +209,18 @@ def project_overview(project_id):
                 "build_history": history.get("builds", []) if isinstance(history, dict) else [],
                 "last_build": history.get("builds", [None])[0] if isinstance(history, dict) and history.get("builds") else None,
                 "service_status": "connected",
+                "last_checked": datetime.datetime.utcnow().isoformat(),
             })
         except Exception as e:
             logger.warning(f"Jenkins overview error: {e}")
-            overview["jenkins"]["error"] = str(e)
+            overview["jenkins"]["error_message"] = str(e)
             overview["jenkins"]["service_status"] = "unavailable"
+            overview["jenkins"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["jenkins"]["healthy"] = False
 
     # Docker
-    overview["docker"] = {"connected": bool(project.docker_container), "service_status": "not_configured"}
+    overview["docker"] = {"connected": bool(project.docker_container), "service_status": "not_configured", "configured": bool(project.docker_container), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if project.docker_container:
         try:
             ds = DockerService()
@@ -228,6 +234,7 @@ def project_overview(project_id):
                 "image": container["Image"] if container else project.docker_image or "",
                 "container_status": container.get("State", "not_found") if container else "not_found",
                 "service_status": "connected",
+                "last_checked": datetime.datetime.utcnow().isoformat(),
             })
             if container:
                 try:
@@ -242,13 +249,14 @@ def project_overview(project_id):
                     pass
         except Exception as e:
             logger.warning(f"Docker overview error: {e}")
-            overview["docker"]["error"] = str(e)
+            overview["docker"]["error_message"] = str(e)
             overview["docker"]["service_status"] = "unavailable"
+            overview["docker"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["docker"]["running"] = False
 
     # Kubernetes
-    overview["kubernetes"] = {"connected": bool(project.kubernetes_namespace and project.kubernetes_deployment), "service_status": "not_configured"}
+    overview["kubernetes"] = {"connected": bool(project.kubernetes_namespace and project.kubernetes_deployment), "service_status": "not_configured", "configured": bool(project.kubernetes_namespace and project.kubernetes_deployment), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if project.kubernetes_namespace and project.kubernetes_deployment:
         try:
             ks = KubernetesService()
@@ -263,16 +271,18 @@ def project_overview(project_id):
                 "ready_pods": sum(1 for p in pods if all(c["ready"] for c in p["status"].get("containerStatuses", []))) if pods else 0,
                 "total_pods": len(pods) if pods else 0,
                 "service_status": "connected",
+                "last_checked": datetime.datetime.utcnow().isoformat(),
             })
         except Exception as e:
             logger.warning(f"K8s overview error: {e}")
-            overview["kubernetes"]["error"] = str(e)
+            overview["kubernetes"]["error_message"] = str(e)
             overview["kubernetes"]["service_status"] = "unavailable"
+            overview["kubernetes"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["kubernetes"]["deployment"] = project.kubernetes_deployment or ""
 
     # Prometheus
-    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured"}
+    overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured", "configured": bool(Config.PROMETHEUS_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if Config.PROMETHEUS_URL:
         try:
             ps = PrometheusService()
@@ -280,6 +290,7 @@ def project_overview(project_id):
             if ps.connected:
                 overview["prometheus"]["service_status"] = "connected"
                 overview["prometheus"]["healthy"] = True
+                overview["prometheus"]["last_checked"] = datetime.datetime.utcnow().isoformat()
                 query_labels = project.prometheus_labels or ""
                 ns_filter = f"{{namespace='{project.kubernetes_namespace}'}}" if project.kubernetes_namespace else ""
                 overview["prometheus"].update({"labels": query_labels})
@@ -299,13 +310,14 @@ def project_overview(project_id):
                     overview["prometheus"]["active_alerts"] = 0
         except Exception as e:
             logger.warning(f"Prometheus overview error: {e}")
-            overview["prometheus"]["error"] = str(e)
+            overview["prometheus"]["error_message"] = str(e)
             overview["prometheus"]["healthy"] = False
+            overview["prometheus"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["prometheus"]["healthy"] = False
 
     # Grafana
-    overview["grafana"] = {"connected": bool(Config.GRAFANA_URL), "service_status": "not_configured"}
+    overview["grafana"] = {"connected": bool(Config.GRAFANA_URL), "service_status": "not_configured", "configured": bool(Config.GRAFANA_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if Config.GRAFANA_URL:
         try:
             gs = GrafanaService()
@@ -321,11 +333,13 @@ def project_overview(project_id):
                     "dashboard_url": f"{Config.GRAFANA_URL}/d/{matched[0]['uid']}" if matched else None,
                     "dashboards_count": len(dashboards or []),
                     "service_status": "connected",
+                    "last_checked": datetime.datetime.utcnow().isoformat(),
                 })
         except Exception as e:
             logger.warning(f"Grafana overview error: {e}")
-            overview["grafana"]["error"] = str(e)
+            overview["grafana"]["error_message"] = str(e)
             overview["grafana"]["service_status"] = "unavailable"
+            overview["grafana"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["grafana"]["dashboard_title"] = project.grafana_dashboard or ""
 

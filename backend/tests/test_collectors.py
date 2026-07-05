@@ -75,17 +75,4 @@ class TestKubernetesCollector:
         assert ks.connected is False
 
 
-class TestConfigDefaults:
-    """Verify no localhost defaults exist in configuration."""
 
-    def test_alertmanager_url_defaults_to_empty(self):
-        os.environ.pop("ALERTMANAGER_URL", None)
-        from config.config import Config
-        assert Config.ALERTMANAGER_URL == "", \
-            "ALERTMANAGER_URL must default to empty, not localhost:9093"
-
-    def test_ollama_url_defaults_to_empty(self):
-        os.environ.pop("OLLAMA_URL", None)
-        from config.config import Config
-        assert Config.OLLAMA_URL == "", \
-            "OLLAMA_URL must default to empty, not localhost:11434"

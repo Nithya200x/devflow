@@ -4,7 +4,7 @@ import {
   FiGitBranch, FiStar, FiCode, FiExternalLink, FiCpu, FiServer,
   FiBox, FiActivity, FiAlertTriangle, FiCheckCircle, FiX, FiArrowUp,
   FiTerminal, FiBarChart2, FiClock, FiUser,
-  FiRefreshCw, FiGithub, FiGlobe
+  FiRefreshCw, FiGithub, FiGlobe, FiPlus
 } from 'react-icons/fi';
 import * as projectService from '../../services/projectService';
 import { NetworkError } from '../../components/Common/NetworkError';
@@ -32,6 +32,18 @@ function ScoreRing({ value, label, sublabel, color = '#8b5cf6' }) {
   );
 }
 
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
+
 const STATUS_MAP = {
   connected: 'success',
   ready: 'active',
@@ -39,57 +51,67 @@ const STATUS_MAP = {
   unavailable: 'error',
 };
 
-const SERVICE_COLLECTORS = [
-  {
-    key: 'GitHub', icon: FiGithub, label: 'GitHub Connection',
-    getStatus: (o) => STATUS_MAP[o.github?.service_status] || 'pending',
-    getMessage: (o) => o.github?.latest_commit ? 'Repository synced' : (o.github?.error || 'Configure a GitHub token to enable sync'),
-  },
-  {
-    key: 'Jenkins', icon: FiTerminal, label: 'Jenkins Pipeline',
-    getStatus: (o) => STATUS_MAP[o.jenkins?.service_status] || 'pending',
-    getMessage: (o) => o.jenkins?.job_name ? (o.jenkins?.healthy ? `Pipeline: ${o.jenkins.job_name}` : 'Pipeline configured, unreachable') : 'Connect Jenkins credentials to enable pipelines',
-  },
-  {
-    key: 'Docker', icon: FiBox, label: 'Docker Container Scan',
-    getStatus: (o) => STATUS_MAP[o.docker?.service_status] || 'pending',
-    getMessage: (o) => o.docker?.container_name ? (o.docker?.running ? `Container: ${o.docker.container_name} running` : `Container: ${o.docker.container_name} stopped`) : 'Connect a Docker host to enable scans',
-  },
-  {
-    key: 'Kubernetes', icon: FiServer, label: 'Kubernetes Analysis',
-    getStatus: (o) => STATUS_MAP[o.kubernetes?.service_status] || 'pending',
-    getMessage: (o) => o.kubernetes?.deployment ? (o.kubernetes?.total_pods > 0 ? `${o.kubernetes.ready_pods || 0}/${o.kubernetes.total_pods || 0} pods ready` : 'Deployment found, awaiting pods') : 'Connect a cluster to enable analysis',
-  },
-  {
-    key: 'Prometheus', icon: FiBarChart2, label: 'Prometheus Metrics',
-    getStatus: (o) => o.prometheus?.healthy ? 'success' : 'pending',
-    getMessage: (o) => o.prometheus?.healthy ? 'Metrics streaming' : 'Prometheus not configured',
-  },
-  {
-    key: 'Grafana', icon: FiActivity, label: 'Grafana Dashboard',
-    getStatus: (o) => STATUS_MAP[o.grafana?.service_status] || 'pending',
-    getMessage: (o) => o.grafana?.dashboard_title ? `Dashboard: ${o.grafana.dashboard_title}` : 'Connect Grafana API key to enable dashboards',
-  },
-  {
-    key: 'AI', icon: FiCpu, label: 'AI Root Cause Engine',
-    getStatus: (o) => o.ai_analysis?.latest?.root_cause ? 'success' : 'active',
-    getMessage: (o) => o.ai_analysis?.latest?.root_cause ? 'AI analysis complete' : 'Groq AI active',
-  },
-];
+function serviceData(o, key) {
+  const d = o[key] || {};
+  return {
+    status: STATUS_MAP[d.service_status] || 'pending',
+    configured: d.configured || false,
+    lastChecked: d.last_checked || null,
+    errorMessage: d.error_message || null,
+    raw: d,
+  };
+}
 
 function DevFlowTimeline({ overview }) {
-  const [expanded, setExpanded] = useState(null);
+  const services = [
+    { key: 'github', icon: FiGithub, label: 'GitHub Connection' },
+    { key: 'jenkins', icon: FiTerminal, label: 'Jenkins Pipeline' },
+    { key: 'docker', icon: FiBox, label: 'Docker Container Scan' },
+    { key: 'kubernetes', icon: FiServer, label: 'Kubernetes Analysis' },
+    { key: 'prometheus', icon: FiBarChart2, label: 'Prometheus Metrics' },
+    { key: 'grafana', icon: FiActivity, label: 'Grafana Dashboard' },
+    { key: 'ai', icon: FiCpu, label: 'AI Root Cause Engine' },
+  ];
   return (
     <div className="devflow-timeline">
-      {SERVICE_COLLECTORS.map((svc) => {
+      {services.map((svc) => {
         const Icon = svc.icon;
-        const status = svc.getStatus(overview);
-        const message = svc.getMessage(overview);
+        const isAI = svc.key === 'ai';
+        let status, configured, lastChecked, errorMessage;
+        if (isAI) {
+          const ai = overview.ai_analysis || {};
+          status = ai.latest?.root_cause ? 'success' : 'active';
+          configured = true;
+          lastChecked = ai.latest?.analyzed_at || null;
+          errorMessage = null;
+        } else {
+          const sd = serviceData(overview, svc.key);
+          status = sd.status;
+          configured = sd.configured;
+          lastChecked = sd.lastChecked;
+          errorMessage = sd.errorMessage;
+        }
+
+        const isNotConfigured = status === 'pending' && !configured;
+        const isError = status === 'error';
+        const isConnected = status === 'success';
+        const isReady = status === 'active';
+
+        let message;
+        if (isAI) {
+          message = errorMessage || (isConnected ? 'AI analysis complete' : 'Groq AI active');
+        } else if (isNotConfigured) {
+          message = 'Credentials not configured';
+        } else if (isError) {
+          message = errorMessage || 'Connection failed';
+        } else if (isConnected) {
+          message = lastChecked ? `Last checked: ${timeAgo(lastChecked)}` : 'Connected';
+        } else {
+          message = 'Waiting...';
+        }
+
         return (
-          <div key={svc.key}
-            className={`timeline-collector ${status} ${expanded === svc.key ? 'expanded' : ''}`}
-            onClick={() => setExpanded(expanded === svc.key ? null : svc.key)}
-          >
+          <div key={svc.key} className={`timeline-collector ${status}`}>
             <div className="collector-line">
               <div className={`collector-dot ${status}`}>
                 <Icon size={14} />
@@ -97,18 +119,22 @@ function DevFlowTimeline({ overview }) {
               <div className="collector-content">
                 <div className="collector-header">
                   <span className="collector-status-icon">
-                    {status === 'success' && <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />}
-                    {status === 'warning' && <FiAlertTriangle size={14} style={{ color: 'var(--warning-color)' }} />}
-                    {status === 'error' && <FiX size={14} style={{ color: 'var(--danger-color)' }} />}
-                    {status === 'pending' && <FiClock size={14} style={{ color: 'var(--text-muted)' }} />}
-                    {status === 'active' && <FiActivity size={14} style={{ color: 'var(--accent-cyan)' }} />}
+                    {isConnected && <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />}
+                    {isError && <FiX size={14} style={{ color: 'var(--danger-color)' }} />}
+                    {isReady && <FiActivity size={14} style={{ color: 'var(--accent-cyan)' }} />}
+                    {isNotConfigured && <FiClock size={14} style={{ color: 'var(--text-muted)' }} />}
                   </span>
                   <span className="collector-label">{svc.label}</span>
                   <span className={`collector-badge ${status}`}>
-                    {status === 'success' ? 'Connected' : status === 'error' ? 'Unavailable' : status === 'active' ? 'Ready' : 'Not Configured'}
+                    {isConnected ? 'Connected' : isError ? 'Error' : isReady ? 'Ready' : 'Not Configured'}
                   </span>
                 </div>
                 <div className="collector-message">{message}</div>
+                {isNotConfigured && (
+                  <button className="btn btn-sm btn-ghost collector-connect-btn" style={{ marginTop: '0.35rem' }}>
+                    <FiPlus size={12} style={{ marginRight: '0.25rem' }} /> Connect Service
+                  </button>
+                )}
               </div>
             </div>
           </div>
