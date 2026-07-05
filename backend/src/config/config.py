@@ -37,7 +37,10 @@ def validate_environment():
         if not os.getenv(var):
             warnings.append(f"{label} integration not configured (env var {var} not set)")
     for w in warnings:
-        logger.warning("Config: %s", w)
+        if "JWT_SECRET_KEY" in w or "TOKEN_ENCRYPTION_KEY" in w:
+            logger.warning("Config: %s", w)
+        else:
+            logger.info("Config: %s", w)
     return warnings
 
 

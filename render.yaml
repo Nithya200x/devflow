@@ -13,11 +13,11 @@ services:
       - key: FLASK_APP
         value: src/app.py
       - key: FRONTEND_URL
-        sync: false
+        value: https://devflow-ops.vercel.app
       - key: JWT_SECRET_KEY
-        sync: false
+        value: 0250b697a44c73968abf5da0914603f2fa5b449892c1fec83bc60a28b43cd676
       - key: TOKEN_ENCRYPTION_KEY
-        sync: false
+        value: deaf651fbe3dee74a663707adcdd5bde
       - key: DATABASE_URL
         sync: false
       - key: GITHUB_TOKEN

@@ -47,7 +47,7 @@ class PrometheusService:
             return True
         except requests.RequestException as e:
             self._connected = False
-            logger.warning(f"Prometheus connection failed: {e}")
+            logger.info("Prometheus connection failed: %s", e)
             return False
 
     @property

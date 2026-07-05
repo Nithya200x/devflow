@@ -111,10 +111,20 @@ def create_app():
 
     with app.app_context():
         try:
+            logger.info("Checking database schema...")
+            db.create_all()
+            db.session.commit()
+            logger.info("Database schema ready")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning("Database schema initialization failed: %s", e)
+
+        try:
             import models
             seed_data()
         except Exception as e:
-            logger.warning(f"Seed data skipped: {e}")
+            db.session.rollback()
+            logger.warning("Seed data skipped: %s", e)
 
         try:
             from models import User
@@ -134,7 +144,8 @@ def create_app():
                     db.session.commit()
                     logger.info("Initial admin user created")
         except Exception as e:
-            logger.warning(f"Admin bootstrap skipped: {e}")
+            db.session.rollback()
+            logger.warning("Admin bootstrap skipped: %s", e)
 
         try:
             from orchestration.ai.service import AIService

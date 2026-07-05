@@ -73,7 +73,7 @@ class KubernetesService:
             return True
         except Exception as e:
             self._connected = False
-            logger.warning(f"Kubernetes connection failed: {e}")
+            logger.info("Kubernetes connection failed: %s", e)
             return False
 
     @property

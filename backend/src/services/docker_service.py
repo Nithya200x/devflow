@@ -54,7 +54,7 @@ class DockerService:
             except DockerException as e:
                 self._connected = False
                 self._client = None
-                logger.warning(f"Docker connection failed: {e}")
+                logger.info("Docker connection failed: %s", e)
                 return False
 
     @property

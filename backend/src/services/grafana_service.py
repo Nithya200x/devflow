@@ -46,7 +46,7 @@ class GrafanaService:
             return False
         except requests.RequestException as e:
             self._connected = False
-            logger.warning(f"Grafana connection failed: {e}")
+            logger.info("Grafana connection failed: %s", e)
             return False
 
     @property

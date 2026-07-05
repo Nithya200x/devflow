@@ -36,7 +36,7 @@ class AlertmanagerService:
             return False
         except requests.RequestException as e:
             self._connected = False
-            logger.warning(f"Alertmanager connection failed: {e}")
+            logger.info("Alertmanager connection failed: %s", e)
             return False
 
     @property
