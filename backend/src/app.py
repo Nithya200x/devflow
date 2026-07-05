@@ -116,6 +116,26 @@ def create_app():
             logger.warning(f"Seed data skipped: {e}")
 
         try:
+            from models import User
+            if User.query.count() == 0:
+                admin_username = os.getenv("ADMIN_USERNAME", "")
+                admin_email = os.getenv("ADMIN_EMAIL", "")
+                admin_password = os.getenv("ADMIN_PASSWORD", "")
+                if admin_username and admin_email and admin_password:
+                    admin = User(
+                        name="Admin",
+                        email=admin_email,
+                        username=admin_username,
+                        role="admin"
+                    )
+                    admin.set_password(admin_password)
+                    db.session.add(admin)
+                    db.session.commit()
+                    logger.info("Initial admin user created")
+        except Exception as e:
+            logger.warning(f"Admin bootstrap skipped: {e}")
+
+        try:
             from orchestration.ai.service import AIService
             ai = AIService()
             provider = ai._get_provider()

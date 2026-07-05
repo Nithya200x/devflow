@@ -1880,3 +1880,7 @@ tr:hover td {
   stroke-dashoffset: 50;
   animation: checkmarkDraw 0.5s ease forwards;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -3,9 +3,9 @@ from extensions import db
 
 def seed_data():
     if User.query.first() is None:
-        admin = User(username="admin", role="admin")
+        admin = User(name="Admin", email="admin@devflow.local", username="admin", role="admin")
         admin.set_password("admin123")
-        dev = User(username="developer", role="developer")
+        dev = User(name="Developer", email="dev@devflow.local", username="developer", role="developer")
         dev.set_password("dev123")
         db.session.add_all([admin, dev])
 
