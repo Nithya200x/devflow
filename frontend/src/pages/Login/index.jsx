@@ -6,8 +6,8 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function Login() {
   const [mode, setMode] = useState('login');
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
