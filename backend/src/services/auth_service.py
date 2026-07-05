@@ -52,16 +52,20 @@ class AuthService:
         email = email.strip()
         name = name.strip()
 
-        if User.query.filter_by(username=username).first():
-            return {"msg": "Username already taken"}, None
+        try:
+            if User.query.filter_by(username=username).first():
+                return {"msg": "Username already taken"}, None
+            if User.query.filter_by(email=email).first():
+                return {"msg": "Email already registered"}, None
 
-        if User.query.filter_by(email=email).first():
-            return {"msg": "Email already registered"}, None
-
-        user = User(name=name, email=email, username=username, role="developer")
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
+            user = User(name=name, email=email, username=username, role="developer")
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Registration failed for '{username}': {e}")
+            return {"msg": "Registration failed due to a server error. Please try again."}, None
 
         access_token = create_access_token(
             identity=user.username,

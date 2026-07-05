@@ -60,6 +60,10 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = db_url if db_url else 'sqlite:///' + os.path.join(database_dir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
 
     TOKEN_ENCRYPTION_KEY = os.getenv("TOKEN_ENCRYPTION_KEY", "devflow-default-enc-key")
     GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
