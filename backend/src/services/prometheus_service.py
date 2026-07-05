@@ -33,6 +33,8 @@ class PrometheusService:
         return url
 
     def _setup_session(self):
+        if self._session is not None:
+            return
         self._session = requests.Session()
         self._session.headers.update({"Accept": "application/json"})
         if self._token:
@@ -53,14 +55,13 @@ class PrometheusService:
             if resp.status_code == 200:
                 data = resp.json()
                 self._version = data.get("data", {}).get("version", "")
-            else:
-                self._version = "unknown"
-            self._connected = True
-            self._connect_time = time.time()
-            logger.info(f"Prometheus connected: {self._base_url} v{self._version}")
-            return True
-        except requests.RequestException:
-            pass
+                self._connected = True
+                self._connect_time = time.time()
+                logger.info(f"Prometheus connected: {self._base_url} v{self._version}")
+                return True
+            logger.info("Prometheus buildinfo returned %s, trying up query", resp.status_code)
+        except requests.RequestException as e:
+            logger.info("Prometheus buildinfo failed: %s, trying up query", e)
 
         try:
             resp = self._session.get(

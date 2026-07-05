@@ -270,6 +270,63 @@ class TestPrometheusHealthCheckEndpoint:
         assert "not configured" in result["error"]
 
 
+class TestPrometheusConnect:
+    def test_connect_fails_when_buildinfo_returns_530_and_up_also_fails(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        def mock_get(url, **kw):
+            resp = MagicMock()
+            resp.status_code = 530
+            resp.json.return_value = {}
+            return resp
+        mock_session.get.side_effect = mock_get
+        ps._session = mock_session
+        result = ps.connect()
+        assert result is False
+        assert ps.connected is False
+
+    def test_connect_succeeds_when_buildinfo_returns_530_but_up_returns_200(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        call_count = [0]
+        def mock_get(url, **kw):
+            call_count[0] += 1
+            resp = MagicMock()
+            if "buildinfo" in url:
+                resp.status_code = 530
+            else:
+                resp.status_code = 200
+                resp.json.return_value = {"status": "success", "data": {"result": [{"metric": {}, "value": [1, "1"]}]}}
+            return resp
+        mock_session.get.side_effect = mock_get
+        ps._session = mock_session
+        result = ps.connect()
+        assert result is True
+        assert ps.connected is True
+        assert call_count[0] == 2
+
+    def test_connect_succeeds_on_buildinfo_200(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "success", "data": {"version": "2.45.0"}}
+        mock_session.get.return_value = mock_resp
+        ps._session = mock_session
+        result = ps.connect()
+        assert result is True
+        assert ps._version == "2.45.0"
+
+
 class TestKubernetesCollector:
     def test_not_configured_when_no_kubeconfig(self):
         from services.kubernetes_service import KubernetesService
