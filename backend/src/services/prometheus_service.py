@@ -244,13 +244,19 @@ class PrometheusService:
             if not self._session:
                 self._setup_session()
             start = time.time()
-            resp = self._session.get(f"{self._base_url}/api/v1/status/buildinfo", timeout=5)
+            resp = self._session.get(
+                f"{self._base_url}/api/v1/query",
+                params={"query": "up"},
+                timeout=5,
+            )
             elapsed = (time.time() - start) * 1000
             if resp.status_code == 200:
                 data = resp.json()
+                result_count = len(data.get("data", {}).get("result", []))
                 return {
                     "connected": True,
-                    "version": data.get("data", {}).get("version", ""),
+                    "has_metrics": result_count > 0,
+                    "version": self._version or "unknown",
                     "latency_ms": round(elapsed, 2),
                     "error": None,
                 }

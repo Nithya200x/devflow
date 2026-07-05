@@ -144,6 +144,36 @@ class TestPrometheusBasicAuth:
         assert "Authorization" not in ps._session.headers
 
 
+class TestPrometheusQueryEndpointURLs:
+    def test_grafana_cloud_query_endpoint(self):
+        os.environ["PROMETHEUS_URL"] = "https://prometheus-prod-42.grafana.net/api/prom"
+        from services.prometheus_service import PrometheusService
+        ps = PrometheusService()
+        assert f"{ps._base_url}/api/v1/query" == \
+            "https://prometheus-prod-42.grafana.net/api/prom/api/v1/query"
+        assert f"{ps._base_url}/api/v1/query_range" == \
+            "https://prometheus-prod-42.grafana.net/api/prom/api/v1/query_range"
+        assert f"{ps._base_url}/api/v1/status/buildinfo" == \
+            "https://prometheus-prod-42.grafana.net/api/prom/api/v1/status/buildinfo"
+        assert ps._base_url.count("api/prom") == 1
+
+    def test_grafana_cloud_base_domain_query_endpoint(self):
+        os.environ["PROMETHEUS_URL"] = "https://prometheus-prod-42.grafana.net"
+        from services.prometheus_service import PrometheusService
+        ps = PrometheusService()
+        assert f"{ps._base_url}/api/v1/query" == \
+            "https://prometheus-prod-42.grafana.net/api/prom/api/v1/query"
+        assert f"{ps._base_url}/api/v1/query_range" == \
+            "https://prometheus-prod-42.grafana.net/api/prom/api/v1/query_range"
+
+    def test_standard_prometheus_query_endpoint(self):
+        os.environ["PROMETHEUS_URL"] = "http://localhost:9090"
+        from services.prometheus_service import PrometheusService
+        ps = PrometheusService()
+        assert f"{ps._base_url}/api/v1/query" == \
+            "http://localhost:9090/api/v1/query"
+
+
 class TestPrometheusHealthQuery:
     def test_up_query_returns_results(self):
         os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
@@ -182,6 +212,62 @@ class TestPrometheusHealthQuery:
         ns_up = ps.query('up{namespace="testns"}')
         assert ns_up["status"] == "success"
         assert len(ns_up["data"]["result"]) == 0
+
+
+class TestPrometheusHealthCheckEndpoint:
+    def test_health_connected_with_metrics(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "success", "data": {"result": [{"metric": {}, "value": [1, "1"]}]}}
+        mock_session.get.return_value = mock_resp
+        ps._session = mock_session
+        result = ps.health_check()
+        assert result["connected"] is True
+        assert result["has_metrics"] is True
+        assert result["error"] is None
+
+    def test_health_connected_no_metrics(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "success", "data": {"result": []}}
+        mock_session.get.return_value = mock_resp
+        ps._session = mock_session
+        result = ps.health_check()
+        assert result["connected"] is True
+        assert result["has_metrics"] is False
+        assert result["error"] is None
+
+    def test_health_unauthenticated(self):
+        os.environ["PROMETHEUS_URL"] = "http://prometheus:9090"
+        from services.prometheus_service import PrometheusService
+        from unittest.mock import MagicMock
+        ps = PrometheusService()
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        mock_session.get.return_value = mock_resp
+        ps._session = mock_session
+        result = ps.health_check()
+        assert result["connected"] is False
+        assert result["error"] == "HTTP 401"
+
+    def test_health_not_configured(self):
+        os.environ.pop("PROMETHEUS_URL", None)
+        from services.prometheus_service import PrometheusService
+        ps = PrometheusService()
+        result = ps.health_check()
+        assert result["connected"] is False
+        assert "not configured" in result["error"]
 
 
 class TestKubernetesCollector:
