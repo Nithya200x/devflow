@@ -449,35 +449,51 @@ function InfrastructureTab({ overview }) {
 
 function MetricsTab({ overview }) {
   const prom = overview.prometheus || {};
-  return (
-    <div className="page-enter">
-      {!overview.prometheus?.healthy ? (
-        <div className="glass-panel">
-          <div className="empty-state" style={{ padding: '1.5rem' }}>
-            <FiBarChart2 size={24} />
-            <h3>No metrics available</h3>
-            <p>Waiting for Prometheus connection</p>
-          </div>
+  const isConnected = prom.healthy;
+  const hasMetrics = prom.has_kubernetes_metrics;
+
+  let body;
+  if (!isConnected) {
+    body = (
+      <div className="glass-panel">
+        <div className="empty-state" style={{ padding: '1.5rem' }}>
+          <FiBarChart2 size={24} />
+          <h3>No metrics available</h3>
+          <p>Waiting for Prometheus connection</p>
         </div>
-      ) : (
-        <div className="glass-panel">
-          <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiBarChart2 /> Metrics
-          </h3>
-          <div className="repo-meta-item" style={{ marginBottom: '1rem' }}>
-            <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
-            <span>Prometheus streaming · monitoring active</span>
-          </div>
-          <div className="stat-grid">
-            <RepoStatCard icon={FiCpu} label="CPU" value={prom.cpu_usage || 'N/A'} color="blue" />
-            <RepoStatCard icon={FiServer} label="Memory" value={prom.memory_usage || 'N/A'} color="violet" />
-            <RepoStatCard icon={FiActivity} label="Network" value={prom.network || 'N/A'} color="cyan" />
-            <RepoStatCard icon={FiBarChart2} label="Availability" value={prom.availability || 'N/A'} color="green" />
-          </div>
+      </div>
+    );
+  } else if (isConnected && !hasMetrics) {
+    body = (
+      <div className="glass-panel">
+        <div className="empty-state" style={{ padding: '1.5rem' }}>
+          <FiBarChart2 size={24} />
+          <h3>Prometheus connected</h3>
+          <p>Waiting for metrics ingestion</p>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  } else {
+    body = (
+      <div className="glass-panel">
+        <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FiBarChart2 /> Metrics
+        </h3>
+        <div className="repo-meta-item" style={{ marginBottom: '1rem' }}>
+          <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
+          <span>Prometheus streaming · monitoring active</span>
+        </div>
+        <div className="stat-grid">
+          <RepoStatCard icon={FiCpu} label="CPU" value={prom.cpu_usage || 'N/A'} color="blue" />
+          <RepoStatCard icon={FiServer} label="Memory" value={prom.memory_usage || 'N/A'} color="violet" />
+          <RepoStatCard icon={FiActivity} label="Network" value={prom.network || 'N/A'} color="cyan" />
+          <RepoStatCard icon={FiBarChart2} label="Availability" value={prom.availability || 'N/A'} color="green" />
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="page-enter">{body}</div>;
 }
 
 function IncidentsTab({ overview }) {

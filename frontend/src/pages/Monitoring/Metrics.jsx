@@ -142,7 +142,7 @@ export default function PrometheusMetrics() {
               ))}
             </div>
           ) : (
-            <EmptyState message="No metrics available. Is Prometheus connected?" />
+            <EmptyState message="No metrics data returned. If this persists after configuration, verify Prometheus URL and credentials." />
           )}
         </div>
       )}
