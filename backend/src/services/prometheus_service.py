@@ -246,9 +246,14 @@ class PrometheusService:
     def health_check(self) -> Dict[str, Any]:
         if not self._base_url:
             return {"connected": False, "error": "PROMETHEUS_URL not configured", "version": "", "latency_ms": 0}
+
+        if not self._connected:
+            self.connect()
+
+        if not self._session:
+            self._setup_session()
+
         try:
-            if not self._session:
-                self._setup_session()
             start = time.time()
             resp = self._session.get(
                 f"{self._base_url}/api/v1/query",
@@ -266,8 +271,10 @@ class PrometheusService:
                     "latency_ms": round(elapsed, 2),
                     "error": None,
                 }
+            self._connected = False
             return {"connected": False, "version": "", "latency_ms": round(elapsed, 2), "error": f"HTTP {resp.status_code}"}
         except requests.RequestException as e:
+            self._connected = False
             return {"connected": False, "version": "", "latency_ms": 0, "error": str(e)}
 
     def list_active_alerts(self) -> List[Dict[str, Any]]:
