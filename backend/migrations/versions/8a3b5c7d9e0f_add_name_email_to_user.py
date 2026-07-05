@@ -20,6 +20,10 @@ def upgrade():
         batch_op.add_column(sa.Column('name', sa.String(length=120), nullable=False, server_default=''))
         batch_op.add_column(sa.Column('email', sa.String(length=120), nullable=False, server_default=''))
         batch_op.add_column(sa.Column('created_at', sa.DateTime(timezone=True), nullable=True))
+
+    op.execute("UPDATE user SET email = username || '@devflow.local' WHERE email = ''")
+
+    with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.create_unique_constraint('uq_user_email', ['email'])
 
 

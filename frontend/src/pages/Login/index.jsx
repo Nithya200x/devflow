@@ -40,6 +40,8 @@ export default function Login() {
     } catch (err) {
       if (err.response?.status === 401) {
         setError(err.response?.data?.msg || 'Invalid credentials');
+      } else if (err.response?.status >= 500) {
+        setError('Server error. Please try again in a moment.');
       } else if (!err.response) {
         setError('Cannot connect to server. Please ensure the backend is running.');
       } else {
@@ -91,6 +93,10 @@ export default function Login() {
     } catch (err) {
       if (err.response?.data?.msg) {
         setError(err.response.data.msg);
+      } else if (err.response?.status >= 500) {
+        setError('Server error. Please try again in a moment.');
+      } else if (err.response?.status === 400) {
+        setError(err.response.data?.msg || 'Invalid request. Please check your input.');
       } else if (!err.response) {
         setError('Cannot connect to server. Please ensure the backend is running.');
       } else {
