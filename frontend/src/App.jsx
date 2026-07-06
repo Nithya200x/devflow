@@ -26,6 +26,7 @@ import MonitoringDashboard from './pages/Monitoring';
 import PrometheusMetrics from './pages/Monitoring/Metrics';
 import GrafanaDashboards from './pages/Monitoring/Dashboards';
 import ActiveAlerts from './pages/Monitoring/Alerts';
+import GrafanaLiveDashboard from './pages/Monitoring/Live';
 import RepositoryCommandCenter from './pages/RepositoryCommandCenter';
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
           <Route path="/monitoring/metrics" element={<AppLayout><PrometheusMetrics /></AppLayout>} />
           <Route path="/monitoring/dashboards" element={<AppLayout><GrafanaDashboards /></AppLayout>} />
           <Route path="/monitoring/alerts" element={<AppLayout><ActiveAlerts /></AppLayout>} />
+          <Route path="/monitoring/live" element={<AppLayout><GrafanaLiveDashboard /></AppLayout>} />
           <Route path="/github" element={<AppLayout><Github /></AppLayout>} />
           <Route path="/github/repos" element={<AppLayout><Repositories /></AppLayout>} />
           <Route path="/github/repos/:repoId" element={<AppLayout><RepositoryDetail /></AppLayout>} />

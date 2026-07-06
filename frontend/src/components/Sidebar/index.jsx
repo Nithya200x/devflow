@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiLayout, FiBox, FiGitBranch, FiGithub, FiServer, FiAlertTriangle,
   FiActivity, FiCpu, FiBarChart2, FiSettings, FiShield, FiLogOut,
-  FiLayers, FiTerminal
+  FiLayers, FiTerminal, FiMonitor
 } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { getInitials } from '../../utils/helpers';
@@ -31,6 +31,7 @@ const NAV_SECTIONS = [
       { path: '/github', label: 'GitHub', icon: FiGithub },
       { path: '/clusters', label: 'Kubernetes', icon: FiServer },
       { path: '/monitoring/metrics', label: 'Metrics', icon: FiCpu },
+      { path: '/monitoring/live', label: 'Live Dashboard', icon: FiMonitor },
     ],
   },
   {
