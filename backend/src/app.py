@@ -112,15 +112,6 @@ def create_app():
 
     _init_orchestration(app)
 
-    try:
-        from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
-        detector = PrometheusIncidentDetector(interval=30)
-        detector.start()
-        app._prometheus_detector = detector
-        logger.info("Prometheus incident detector started")
-    except Exception as e:
-        logger.warning("Prometheus incident detector init skipped: %s", e)
-
     register_health_routes(app)
 
     @app.teardown_appcontext
@@ -175,6 +166,15 @@ def create_app():
                 logger.warning("AI service initialized but no provider configured")
         except Exception as e:
             logger.warning("AI service init skipped: %s", e)
+
+    try:
+        from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+        detector = PrometheusIncidentDetector(interval=30)
+        detector.start(app)
+        app._prometheus_detector = detector
+        logger.info("Prometheus incident detector started")
+    except Exception as e:
+        logger.warning("Prometheus incident detector init skipped: %s", e)
 
     logger.info(f"{Config.APP_NAME} v{Config.APP_VERSION} started")
     return app

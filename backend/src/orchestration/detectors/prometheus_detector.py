@@ -26,11 +26,20 @@ class PrometheusIncidentDetector:
         self._interval = interval
         self._thread = None
         self._stop = threading.Event()
+        self._app = None
+        self._lock = threading.Lock()
+        self._started = False
 
-    def start(self):
-        if self._thread and self._thread.is_alive():
-            logger.warning("Detector already running")
-            return
+    def start(self, app=None):
+        with self._lock:
+            if self._started:
+                logger.warning("Detector already started")
+                return
+            self._started = True
+
+        if app is None:
+            app = self._find_app()
+        self._app = app
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, daemon=True, name="prom-detector")
         self._thread.start()
@@ -40,18 +49,29 @@ class PrometheusIncidentDetector:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=5)
+        self._started = False
         logger.info("Prometheus incident detector stopped")
+
+    @staticmethod
+    def _find_app():
+        try:
+            from flask import current_app
+            return current_app._get_current_object()
+        except Exception:
+            from app import app as _app
+            return _app
 
     def _run(self):
         time.sleep(5)
         logger.info("Prometheus detector background loop started")
 
-        while not self._stop.is_set():
-            try:
-                self._check_triggers()
-            except Exception:
-                logger.exception("Prometheus detector check failed")
-            self._stop.wait(self._interval)
+        with self._app.app_context():
+            while not self._stop.is_set():
+                try:
+                    self._check_triggers()
+                except Exception:
+                    logger.exception("Prometheus detector check failed")
+                self._stop.wait(self._interval)
 
     def _check_triggers(self):
         ps = prometheus_service

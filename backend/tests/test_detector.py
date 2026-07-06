@@ -208,3 +208,46 @@ def test_detector_config_threshold_adjustment():
         assert fetched["threshold"] == 10.0
 
         detector_config.update("high_error_rate", {"threshold": 5.0})
+
+
+def test_detector_background_context_can_access_db():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+    import threading
+
+    app = create_app()
+    detector = PrometheusIncidentDetector(interval=0.1)
+
+    db_ok = threading.Event()
+    db_error = []
+
+    def test_check():
+        try:
+            from models import Incident
+            _ = Incident.query.count()
+            db_ok.set()
+        except Exception as e:
+            db_error.append(str(e))
+            db_ok.set()
+
+    detector._check_triggers = test_check
+    detector.start(app)
+    db_ok.wait(timeout=5)
+    detector.stop()
+
+    assert not db_error, f"DB access from background context failed: {db_error}"
+
+
+def test_detector_duplicate_start_does_not_create_multiple_threads():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+
+    app = create_app()
+    detector = PrometheusIncidentDetector(interval=30)
+    detector.start(app)
+    first_thread = detector._thread
+
+    detector.start(app)
+
+    assert detector._thread is first_thread
+    assert detector._thread.is_alive()
+
+    detector.stop()
