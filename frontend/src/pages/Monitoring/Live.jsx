@@ -10,6 +10,11 @@ export default function GrafanaLiveDashboard() {
   const [iframeError, setIframeError] = useState(false);
 
   const dashboardUrl = config.GRAFANA_DASHBOARD_URL;
+  const embedUrl = dashboardUrl
+    ? dashboardUrl.includes("?")
+      ? `${dashboardUrl}&orgId=1&kiosk&theme=dark`
+      : `${dashboardUrl}?orgId=1&kiosk&theme=dark`
+    : "";
 
   const handleIframeLoad = () => {
     setIframeLoading(false);
@@ -91,7 +96,7 @@ export default function GrafanaLiveDashboard() {
           </div>
         ) : (
           <iframe
-            src={dashboardUrl}
+            src={embedUrl}
             title="Grafana Live Dashboard"
             style={{
               width: '100%',
