@@ -18,6 +18,7 @@ from routes.jenkins import jenkins_bp
 from routes.docker import docker_bp
 from routes.kubernetes import kubernetes_bp
 from routes.orchestration import orchestration_bp
+from routes.metrics import metrics_bp
 from routes.prometheus import prometheus_bp
 from routes.grafana import grafana_bp
 from routes.alertmanager import alertmanager_bp
@@ -104,6 +105,7 @@ def create_app():
     app.register_blueprint(jenkins_bp, url_prefix='/api/v1/jenkins')
     app.register_blueprint(docker_bp, url_prefix='/api/v1/docker')
     app.register_blueprint(kubernetes_bp, url_prefix='/api/v1/kubernetes')
+    app.register_blueprint(metrics_bp, url_prefix='/api/v1/metrics')
     app.register_blueprint(prometheus_bp, url_prefix='/api/v1/prometheus')
     app.register_blueprint(grafana_bp, url_prefix='/api/v1/grafana')
     app.register_blueprint(alertmanager_bp, url_prefix='/api/v1/alertmanager')

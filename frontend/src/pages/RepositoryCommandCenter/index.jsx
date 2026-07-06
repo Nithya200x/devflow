@@ -7,7 +7,9 @@ import {
   FiRefreshCw, FiGithub, FiGlobe, FiPlus
 } from 'react-icons/fi';
 import * as projectService from '../../services/projectService';
+import { getMetricsSummary } from '../../services/metricsService';
 import { NetworkError } from '../../components/Common/NetworkError';
+import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
 
 function ScoreRing({ value, label, sublabel, color = '#8b5cf6' }) {
@@ -448,52 +450,100 @@ function InfrastructureTab({ overview }) {
 }
 
 function MetricsTab({ overview }) {
-  const prom = overview.prometheus || {};
-  const isConnected = prom.healthy;
-  const hasMetrics = prom.has_kubernetes_metrics;
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  let body;
-  if (!isConnected) {
-    body = (
+  const fetchSummary = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getMetricsSummary();
+      setData(result);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+
+  const prom = overview.prometheus || {};
+  const isConfigured = prom.configured;
+
+  if (!isConfigured) {
+    return (
       <div className="glass-panel">
         <div className="empty-state" style={{ padding: '1.5rem' }}>
           <FiBarChart2 size={24} />
           <h3>No metrics available</h3>
-          <p>Waiting for Prometheus connection</p>
-        </div>
-      </div>
-    );
-  } else if (isConnected && !hasMetrics) {
-    body = (
-      <div className="glass-panel">
-        <div className="empty-state" style={{ padding: '1.5rem' }}>
-          <FiBarChart2 size={24} />
-          <h3>Prometheus connected</h3>
-          <p>Waiting for metrics ingestion</p>
-        </div>
-      </div>
-    );
-  } else {
-    body = (
-      <div className="glass-panel">
-        <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FiBarChart2 /> Metrics
-        </h3>
-        <div className="repo-meta-item" style={{ marginBottom: '1rem' }}>
-          <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
-          <span>Prometheus streaming · monitoring active</span>
-        </div>
-        <div className="stat-grid">
-          <RepoStatCard icon={FiCpu} label="CPU" value={prom.cpu_usage || 'N/A'} color="blue" />
-          <RepoStatCard icon={FiServer} label="Memory" value={prom.memory_usage || 'N/A'} color="violet" />
-          <RepoStatCard icon={FiActivity} label="Network" value={prom.network || 'N/A'} color="cyan" />
-          <RepoStatCard icon={FiBarChart2} label="Availability" value={prom.availability || 'N/A'} color="green" />
+          <p>Prometheus not configured</p>
         </div>
       </div>
     );
   }
 
-  return <div className="page-enter">{body}</div>;
+  if (loading) return <LoadingSpinner text="Loading metrics..." />;
+  if (error) return <NetworkError error={error} onRetry={fetchSummary} />;
+
+  const s = data || {};
+  const status = s.status || 'no_data';
+  const requests = s.requests || 0;
+  const errors = s.errors || 0;
+  const errorRate = s.errorRate || 0;
+  const avgLatency = s.avgLatency || 0;
+  const activeRequests = s.activeRequests || 0;
+
+  const latencyMs = avgLatency > 0 ? (avgLatency * 1000).toFixed(1) : null;
+  const displayLatency = latencyMs ? `${latencyMs}ms` : '—';
+
+  let statusLabel, statusClass;
+  if (status === 'healthy') {
+    statusLabel = 'Active';
+    statusClass = 'success';
+  } else if (status === 'connected') {
+    statusLabel = 'No Data';
+    statusClass = 'warning';
+  } else if (status === 'not_configured') {
+    statusLabel = 'Not Configured';
+    statusClass = 'neutral';
+  } else {
+    statusLabel = 'Disconnected';
+    statusClass = 'danger';
+  }
+
+  return (
+    <div className="page-enter">
+      <div className="glass-panel" style={{ marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiBarChart2 /> Application Metrics
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className={`badge ${statusClass}`}>{statusLabel}</span>
+            <button className="btn btn-ghost btn-sm" onClick={fetchSummary} title="Refresh">
+              <FiRefreshCw size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <RepoStatCard icon={FiActivity} label="Total Requests" value={requests.toLocaleString()} color="blue" />
+        <RepoStatCard icon={FiAlertTriangle} label="Error Rate" value={`${errorRate}%`} color={errorRate > 5 ? 'red' : 'green'} />
+        <RepoStatCard icon={FiClock} label="Avg Latency" value={displayLatency} color="violet" />
+        <RepoStatCard icon={FiCpu} label="Active Requests" value={activeRequests} color="cyan" />
+      </div>
+
+      {status === 'healthy' && (
+        <div className="repo-meta-item" style={{ marginTop: '0.75rem' }}>
+          <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
+          <span>Alloy scraping active · metrics flowing</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function IncidentsTab({ overview }) {
