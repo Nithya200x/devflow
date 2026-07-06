@@ -42,6 +42,11 @@ class DetectorConfigManager:
         if self._loaded:
             return
         self._loaded = True
+        import flask
+        logger.debug(
+            "has_app_context in _ensure_loaded: %s (thread=%s)",
+            flask.has_app_context(), threading.current_thread().name,
+        )
         try:
             records = DetectorConfigDB.query.all()
             if not records:

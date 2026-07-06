@@ -251,3 +251,30 @@ def test_detector_duplicate_start_does_not_create_multiple_threads():
     assert detector._thread.is_alive()
 
     detector.stop()
+
+
+def test_detector_find_open_incident_has_context_from_thread_target():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+    import threading
+
+    app = create_app()
+    detector = PrometheusIncidentDetector(interval=0.1)
+
+    results = []
+    done = threading.Event()
+
+    def test_loop():
+        try:
+            result = detector._find_open_incident("high_error_rate")
+            results.append(("ok", result))
+        except Exception as e:
+            results.append(("error", str(e)))
+        done.set()
+
+    detector._run_loop = test_loop
+    detector.start(app)
+    done.wait(timeout=10)
+    detector.stop()
+
+    assert len(results) == 1
+    assert results[0][0] == "ok", f"_find_open_incident failed: {results[0]}"

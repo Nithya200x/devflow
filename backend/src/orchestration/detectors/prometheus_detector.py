@@ -66,12 +66,15 @@ class PrometheusIncidentDetector:
         logger.info("Prometheus detector background loop started")
 
         with self._app.app_context():
-            while not self._stop.is_set():
-                try:
-                    self._check_triggers()
-                except Exception:
-                    logger.exception("Prometheus detector check failed")
-                self._stop.wait(self._interval)
+            self._run_loop()
+
+    def _run_loop(self):
+        while not self._stop.is_set():
+            try:
+                self._check_triggers()
+            except Exception:
+                logger.exception("Prometheus detector check failed")
+            self._stop.wait(self._interval)
 
     def _check_triggers(self):
         ps = prometheus_service
@@ -109,6 +112,11 @@ class PrometheusIncidentDetector:
                 logger.exception("Error checking trigger %s", trigger_key)
 
     def _find_open_incident(self, trigger_key):
+        import flask
+        logger.debug(
+            "has_app_context in _find_open_incident: %s (thread=%s)",
+            flask.has_app_context(), threading.current_thread().name,
+        )
         source_tag = f"prometheus_{trigger_key}"
         try:
             from models import Incident
@@ -125,6 +133,11 @@ class PrometheusIncidentDetector:
         return self._find_open_incident(trigger_key) is not None
 
     def _resolve_incident(self, incident, trigger_key):
+        import flask
+        logger.debug(
+            "has_app_context in _resolve_incident: %s (thread=%s)",
+            flask.has_app_context(), threading.current_thread().name,
+        )
         try:
             from orchestration.services.orchestration_service import get_orchestrator
 
@@ -158,6 +171,11 @@ class PrometheusIncidentDetector:
             logger.exception("Failed to auto-resolve incident for %s", trigger_key)
 
     def _create_incident(self, trigger_key, title, description, severity):
+        import flask
+        logger.debug(
+            "has_app_context in _create_incident: %s (thread=%s)",
+            flask.has_app_context(), threading.current_thread().name,
+        )
         source_tag = f"prometheus_{trigger_key}"
         try:
             from orchestration.services.orchestration_service import get_orchestrator
