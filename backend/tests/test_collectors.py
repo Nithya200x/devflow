@@ -361,10 +361,13 @@ class TestPrometheusConnect:
 
 class TestKubernetesCollector:
     def test_not_configured_when_no_kubeconfig(self):
-        from services.kubernetes_service import KubernetesService
-        ks = KubernetesService()
-        assert ks.connect() is False
-        assert ks.connected is False
+        from unittest.mock import patch
+        with patch("kubernetes.config.load_kube_config", side_effect=Exception("no kubeconfig")), \
+             patch("kubernetes.config.load_incluster_config", side_effect=Exception("no incluster")):
+            from services.kubernetes_service import KubernetesService
+            ks = KubernetesService()
+            assert ks.connect() is False
+            assert ks.connected is False
 
 
 

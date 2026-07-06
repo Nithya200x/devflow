@@ -26,6 +26,56 @@ function SourceIcon({ source }) {
   return <Icon size={14} style={{ color: `var(--${meta.color === 'danger' ? 'danger' : meta.color}-color)` }} />;
 }
 
+function formatTimestamp(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+}
+
+function EventIcon({ eventType }) {
+  const icons = {
+    prometheus_alert: { icon: FiAlertTriangle, color: 'var(--warning-color)' },
+    incident_created: { icon: FiActivity, color: 'var(--info-color)' },
+    incident_resolved: { icon: FiCheckCircle, color: 'var(--success-color)' },
+    auto_resolved: { icon: FiCheckCircle, color: 'var(--success-color)' },
+    ai_analysis_completed: { icon: FiCpu, color: 'var(--violet-color)' },
+    ai_analysis_reused: { icon: FiCpu, color: 'var(--violet-color)' },
+    ai_analysis_failed: { icon: FiCpu, color: 'var(--danger-color)' },
+    ai_analysis_error: { icon: FiCpu, color: 'var(--danger-color)' },
+    ai_analysis_rate_limited: { icon: FiClock, color: 'var(--warning-color)' },
+  };
+  const meta = icons[eventType];
+  if (!meta) return <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--text-secondary)', flexShrink: 0 }} />;
+  const Icon = meta.icon;
+  return <Icon size={12} style={{ color: meta.color, flexShrink: 0 }} />;
+}
+
+function Timeline({ events }) {
+  if (!events || events.length === 0) return null;
+  return (
+    <div style={{ marginBottom: '0.75rem' }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+        <FiClock size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+        Timeline
+      </div>
+      <div style={{ position: 'relative', paddingLeft: '1.25rem' }}>
+        <div style={{ position: 'absolute', left: 5, top: 4, bottom: 4, width: 1, background: 'rgba(255,255,255,0.1)' }} />
+        {events.map((evt, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem', fontSize: '0.8rem' }}>
+            <EventIcon eventType={evt.event_type} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginRight: '0.4rem' }}>
+                {formatTimestamp(evt.timestamp)}
+              </span>
+              <span style={{ color: 'var(--text-primary)' }}>{evt.description}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Incidents() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +152,7 @@ export default function Incidents() {
                 <span className={`badge ${row.status === 'open' ? 'warning' : 'success'}`} style={{ fontSize: '0.7rem' }}>{row.status}</span>
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                {new Date(row.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                {formatTimestamp(row.created_at)}
               </div>
               {row.status !== 'resolved' && (
                 <button
@@ -122,6 +172,15 @@ export default function Incidents() {
                     <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{row.description}</div>
                   </div>
                 )}
+                {row.resolution_reason && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                      Resolution
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--success-color)' }}>{row.resolution_reason}</div>
+                  </div>
+                )}
                 {row.ai_summary && (
                   <div style={{ marginBottom: '0.75rem' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
@@ -132,7 +191,7 @@ export default function Incidents() {
                   </div>
                 )}
                 {row.suggested_fixes && row.suggested_fixes.length > 0 && (
-                  <div>
+                  <div style={{ marginBottom: '0.75rem' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                       <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
                       Suggested Fixes
@@ -144,6 +203,7 @@ export default function Incidents() {
                     </ul>
                   </div>
                 )}
+                <Timeline events={row.timeline} />
                 {!row.description && !row.ai_summary && (!row.suggested_fixes || row.suggested_fixes.length === 0) && (
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                     AI analysis pending...

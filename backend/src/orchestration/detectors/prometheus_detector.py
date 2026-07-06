@@ -4,29 +4,12 @@ import time
 from datetime import datetime, timezone
 
 from services.prometheus_service import prometheus_service
+from orchestration.detectors.detector_config import detector_config, DEFAULT_TRIGGERS
 
 logger = logging.getLogger(__name__)
 
-TRIGGER_CONFIG = {
-    "high_error_rate": {
-        "query": "sum(rate(devflow_http_errors_total[5m])) / sum(rate(devflow_http_requests_total[5m])) * 100 > 5",
-        "severity": "critical",
-        "title": "High HTTP error rate ({value:.1f}%)",
-        "description": "Prometheus detected HTTP error rate of {value:.1f}% over the last 5 minutes, exceeding the 5% threshold.",
-    },
-    "high_latency": {
-        "query": "histogram_quantile(0.95, sum(rate(devflow_http_request_duration_seconds_bucket[5m])) by (le)) > 1.0",
-        "severity": "warning",
-        "title": "High p95 latency ({value:.1f}s)",
-        "description": "Prometheus detected p95 latency of {value:.1f}s over the last 5 minutes, exceeding the 1s threshold.",
-    },
-    "service_down": {
-        "query": 'count(devflow_http_requests_total offset 2m) == 0',
-        "severity": "critical",
-        "title": "Service appears down",
-        "description": "Prometheus detected no request metrics in the last 2 minutes. The service may be down or unreachable.",
-    },
-}
+# Kept for backward compatibility in tests
+TRIGGER_CONFIG = dict(DEFAULT_TRIGGERS)
 
 
 def _extract_value(result):
@@ -79,7 +62,9 @@ class PrometheusIncidentDetector:
             logger.debug("Prometheus not connected, skipping detector check")
             return
 
-        for trigger_key, config in TRIGGER_CONFIG.items():
+        configs = detector_config.get_active_triggers()
+
+        for trigger_key, config in configs.items():
             if self._stop.is_set():
                 break
             try:
@@ -88,22 +73,22 @@ class PrometheusIncidentDetector:
                     result.get("status") == "success"
                     and len(result.get("data", {}).get("result", [])) > 0
                 )
-                if not triggered:
-                    continue
 
-                value = _extract_value(result)
-                title = config["title"].format(value=value)
-                description = config["description"].format(value=value)
+                open_incident = self._find_open_incident(trigger_key)
 
-                if self._has_open_incident(trigger_key):
-                    logger.debug("Open incident exists for %s, skipping", trigger_key)
-                    continue
+                if triggered and not open_incident:
+                    value = _extract_value(result)
+                    title = config["title"].format(value=value)
+                    description = config["description"].format(value=value)
+                    self._create_incident(trigger_key, title, description, config["severity"])
 
-                self._create_incident(trigger_key, title, description, config["severity"])
+                elif not triggered and open_incident:
+                    self._resolve_incident(open_incident, trigger_key)
+
             except Exception:
                 logger.exception("Error checking trigger %s", trigger_key)
 
-    def _has_open_incident(self, trigger_key):
+    def _find_open_incident(self, trigger_key):
         source_tag = f"prometheus_{trigger_key}"
         try:
             from models import Incident
@@ -111,10 +96,46 @@ class PrometheusIncidentDetector:
                 Incident.source == source_tag,
                 Incident.status == "open",
             ).first()
-            return existing is not None
+            return existing
         except Exception:
-            logger.exception("Error checking for existing incident")
-            return True
+            logger.exception("Error finding incident for %s", trigger_key)
+            return None
+
+    def _has_open_incident(self, trigger_key):
+        return self._find_open_incident(trigger_key) is not None
+
+    def _resolve_incident(self, incident, trigger_key):
+        try:
+            from orchestration.services.orchestration_service import get_orchestrator
+
+            reason = f"Metrics returned to normal for {trigger_key.replace('_', ' ')}"
+
+            svc = get_orchestrator()
+            orchestration_incident = svc.incident_service.get_incident(incident.incident_id)
+            if orchestration_incident:
+                svc.incident_service.resolve_incident(
+                    incident.incident_id,
+                    resolution_notes=reason,
+                )
+                svc.incident_service.add_timeline_event(
+                    incident.incident_id,
+                    "auto_resolved",
+                    "prometheus_detector",
+                    reason,
+                )
+
+            incident.resolved_at = datetime.now(timezone.utc)
+            incident.status = "resolved"
+            incident.resolution_reason = reason
+            from extensions import db
+            db.session.commit()
+
+            logger.info(
+                "Auto-resolved incident %s (%s): %s",
+                incident.incident_id, trigger_key, reason,
+            )
+        except Exception:
+            logger.exception("Failed to auto-resolve incident for %s", trigger_key)
 
     def _create_incident(self, trigger_key, title, description, severity):
         source_tag = f"prometheus_{trigger_key}"

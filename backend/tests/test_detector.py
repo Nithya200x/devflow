@@ -107,3 +107,104 @@ def test_detector_skips_when_open_incident_exists():
         with patch.object(detector, "_check_triggers") as mock_check:
             mock_check.side_effect = None
             assert detector._has_open_incident("high_error_rate") is True
+
+
+def test_detector_resolves_when_trigger_no_longer_firing():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+
+    app = create_app()
+    with app.app_context():
+        detector = PrometheusIncidentDetector()
+
+        mock_incident = MagicMock()
+        mock_incident.incident_id = "INC-TEST456"
+        mock_incident.status = "open"
+        mock_incident.resolved_at = None
+
+        mock_svc = MagicMock()
+        mock_orch_incident = MagicMock()
+        mock_svc.incident_service.get_incident.return_value = mock_orch_incident
+
+        with patch(
+            "orchestration.detectors.prometheus_detector.detector_config",
+        ) as mock_config:
+            mock_config.get_active_triggers.return_value = {
+                "high_error_rate": {
+                    "query": "some_query > 5",
+                    "severity": "critical",
+                    "title": "High error rate ({value:.1f}%)",
+                    "description": "Error rate is high at {value:.1f}%",
+                    "threshold": 5.0,
+                },
+            }
+
+            with patch(
+                "orchestration.detectors.prometheus_detector.prometheus_service",
+            ) as mock_ps:
+                mock_ps._base_url = "http://prometheus:9090"
+                mock_ps.connected = True
+                mock_ps.instant_query.return_value = {
+                    "status": "success",
+                    "data": {"result": []},
+                }
+
+                with patch.object(
+                    detector, "_find_open_incident", return_value=mock_incident
+                ):
+                    with patch(
+                        "orchestration.services.orchestration_service.get_orchestrator",
+                        return_value=mock_svc,
+                    ):
+                        with patch("extensions.db.session.commit"):
+                            detector._check_triggers()
+
+                            mock_svc.incident_service.resolve_incident.assert_called_once()
+                            assert mock_incident.status == "resolved"
+
+
+def test_detector_uses_config_manager():
+    from orchestration.detectors.detector_config import detector_config
+
+    app = create_app()
+    with app.app_context():
+        all_config = detector_config.get_all()
+        assert "high_error_rate" in all_config
+        assert "high_latency" in all_config
+        assert "service_down" in all_config
+
+        error_cfg = detector_config.get("high_error_rate")
+        assert error_cfg is not None
+        assert error_cfg["enabled"] is True
+        assert error_cfg["severity"] == "critical"
+
+
+def test_detector_config_can_enable_disable():
+    from orchestration.detectors.detector_config import detector_config
+
+    app = create_app()
+    with app.app_context():
+        updated = detector_config.update("high_error_rate", {"enabled": False})
+        assert updated is not None
+        assert updated["enabled"] is False
+
+        active = detector_config.get_active_triggers()
+        assert "high_error_rate" not in active
+
+        detector_config.update("high_error_rate", {"enabled": True})
+        active = detector_config.get_active_triggers()
+        assert "high_error_rate" in active
+
+
+def test_detector_config_threshold_adjustment():
+    from orchestration.detectors.detector_config import detector_config
+
+    app = create_app()
+    with app.app_context():
+        updated = detector_config.update("high_error_rate", {"threshold": 10.0})
+        assert updated is not None
+        assert updated["threshold"] == 10.0
+
+        fetched = detector_config.get("high_error_rate")
+        assert fetched["threshold"] == 10.0
+
+        detector_config.update("high_error_rate", {"threshold": 5.0})

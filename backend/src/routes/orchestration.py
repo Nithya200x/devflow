@@ -7,6 +7,7 @@ from orchestration.models.event_store import AIAnalysisStore
 from utils.time import to_iso
 
 from orchestration.services.orchestration_service import get_orchestrator
+from orchestration.detectors.detector_config import detector_config
 from orchestration.events.event_types import (
     BuildFailed,
     BuildStarted,
@@ -248,3 +249,24 @@ def list_analyses():
                 "similar_patterns": inc.similar_patterns or [],
             })
     return jsonify({"analyses": results}), 200
+
+
+@orchestration_bp.route("/detector/config", methods=["GET"])
+@jwt_required()
+def get_detector_config():
+    config = detector_config.get_all()
+    return jsonify({"config": config}), 200
+
+
+@orchestration_bp.route("/detector/config/<trigger_key>", methods=["PATCH"])
+@jwt_required()
+def update_detector_config(trigger_key):
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "Request body is required"}), 400
+
+    updated = detector_config.update(trigger_key, data)
+    if not updated:
+        return jsonify({"msg": f"Unknown trigger: {trigger_key}"}), 404
+
+    return jsonify({"message": "Config updated", "config": updated}), 200

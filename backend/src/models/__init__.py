@@ -70,6 +70,21 @@ class Incident(db.Model):
     ai_analysis_id = db.Column(db.Integer, db.ForeignKey('ai_analysis.id'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=now)
     resolved_at = db.Column(db.DateTime, nullable=True)
+    resolution_reason = db.Column(db.String(255), default="")
+
+
+class DetectorConfig(db.Model):
+    __tablename__ = 'detector_config'
+    id = db.Column(db.Integer, primary_key=True)
+    trigger_key = db.Column(db.String(100), unique=True, nullable=False)
+    enabled = db.Column(db.Boolean, default=True)
+    promql = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), default="warning")
+    title_template = db.Column(db.String(255), default="")
+    description_template = db.Column(db.Text, default="")
+    threshold = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=now)
+    updated_at = db.Column(db.DateTime(timezone=True), default=now, onupdate=now)
 
 
 class ConnectedProject(db.Model):

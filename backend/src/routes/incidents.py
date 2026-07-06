@@ -23,9 +23,17 @@ def handle_incidents():
                 "source": i.source or "",
                 "description": i.description or "",
                 "created_at": to_iso(i.created_at),
+                "resolved_at": to_iso(i.resolved_at),
+                "resolution_reason": i.resolution_reason or "",
                 "ai_summary": "",
                 "suggested_fixes": [],
+                "timeline": [],
             }
+            if i.timeline_json:
+                try:
+                    item["timeline"] = json.loads(i.timeline_json)
+                except Exception:
+                    pass
             if i.ai_analysis_id:
                 try:
                     from orchestration.models.event_store import AIAnalysisStore
