@@ -109,6 +109,10 @@ def create_app():
 
     register_health_routes(app)
 
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
+
     with app.app_context():
         try:
             logger.info("Checking database schema...")

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import User, GitRepository, ConnectedProject
-from extensions import db
+from extensions import db, retry_on_db_disconnect
 from services.github_auth import PATGitHubAuth
 from services.github_service import GitHubService
 from utils.encryption import encrypt_token, decrypt_token
@@ -606,6 +606,7 @@ def repo_contributors(repo_id):
 
 @github_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
+@retry_on_db_disconnect()
 def dashboard_summary():
     username = get_jwt_identity()
     gh, err, status = _get_authenticated_service(username)

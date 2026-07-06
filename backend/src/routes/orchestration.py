@@ -2,7 +2,7 @@ import inspect
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from extensions import db
+from extensions import db, retry_on_db_disconnect
 from orchestration.models.event_store import AIAnalysisStore
 from utils.time import to_iso
 
@@ -208,6 +208,7 @@ def get_analysis(incident_id):
 
 @orchestration_bp.route("/ai/analyses/db", methods=["GET"])
 @jwt_required()
+@retry_on_db_disconnect()
 def list_db_analyses():
     records = AIAnalysisStore.query.order_by(AIAnalysisStore.analyzed_at.desc()).limit(50).all()
     return jsonify({"analyses": [r.to_dict() for r in records]}), 200
