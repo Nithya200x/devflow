@@ -23,3 +23,6 @@ jenkins-*.xml
 
 # Local reports
 ACCEPTANCE_REPORT.md
+
+# SQLite database directory
+backend/database/
