@@ -1,5 +1,8 @@
+import json
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
+from models import Incident
 from services.incident_service import IncidentService
 from utils.time import to_iso
 
@@ -10,13 +13,30 @@ incidents_bp = Blueprint('incidents', __name__)
 def handle_incidents():
     if request.method == 'GET':
         incidents = IncidentService.get_all()
-        return jsonify([{
-            "id": i.id,
-            "title": i.title,
-            "status": i.status,
-            "severity": i.severity,
-            "created_at": to_iso(i.created_at)
-        } for i in incidents]), 200
+        result = []
+        for i in incidents:
+            item = {
+                "id": i.id,
+                "title": i.title,
+                "status": i.status,
+                "severity": i.severity,
+                "source": i.source or "",
+                "description": i.description or "",
+                "created_at": to_iso(i.created_at),
+                "ai_summary": "",
+                "suggested_fixes": [],
+            }
+            if i.ai_analysis_id:
+                try:
+                    from orchestration.models.event_store import AIAnalysisStore
+                    analysis = AIAnalysisStore.query.get(i.ai_analysis_id)
+                    if analysis:
+                        item["ai_summary"] = analysis.summary or ""
+                        item["suggested_fixes"] = json.loads(analysis.suggested_fixes_json) if analysis.suggested_fixes_json else []
+                except Exception:
+                    pass
+            result.append(item)
+        return jsonify(result), 200
 
     elif request.method == 'POST':
         data = request.get_json()

@@ -1,15 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiCheckCircle } from 'react-icons/fi';
+import {
+  FiCheckCircle, FiChevronDown, FiChevronRight,
+  FiActivity, FiClock, FiAlertTriangle, FiCpu,
+} from 'react-icons/fi';
 import * as incidentService from '../../services/incidentService';
-import { DataTable } from '../../components/Tables/DataTable';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
 import { EmptyState } from '../../components/Common/EmptyState';
+
+const SOURCE_META = {
+  prometheus_high_error_rate: { icon: FiAlertTriangle, label: 'High Error Rate', color: 'red' },
+  prometheus_high_latency: { icon: FiClock, label: 'High Latency', color: 'violet' },
+  prometheus_service_down: { icon: FiActivity, label: 'Service Down', color: 'danger' },
+};
+
+function formatSource(source) {
+  if (SOURCE_META[source]) return SOURCE_META[source].label;
+  return source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function SourceIcon({ source }) {
+  const meta = SOURCE_META[source];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return <Icon size={14} style={{ color: `var(--${meta.color === 'danger' ? 'danger' : meta.color}-color)` }} />;
+}
 
 export default function Incidents() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchIncidents = useCallback(async () => {
     try {
@@ -36,23 +57,9 @@ export default function Incidents() {
     }
   };
 
-  const columns = [
-    { key: 'id', label: 'ID', style: { color: 'var(--text-secondary)' }, render: (row) => `#${row.id}` },
-    { key: 'title', label: 'Title', render: (row) => <strong>{row.title}</strong> },
-    { key: 'severity', label: 'Severity', render: (row) => <span className={`badge ${row.severity}`}>{row.severity}</span> },
-    { key: 'status', label: 'Status', render: (row) => <span className={`badge ${row.status}`}>{row.status}</span> },
-    { key: 'created_at', label: 'Created', style: { color: 'var(--text-secondary)' }, render: (row) => new Date(row.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) },
-    {
-      key: 'actions', label: 'Actions',
-      render: (row) => (
-        row.status !== 'resolved' ? (
-          <button className="btn btn-success" style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem'}} onClick={() => resolveIncident(row.id)}>
-            <FiCheckCircle size={14} /> Resolve
-          </button>
-        ) : null
-      ),
-    },
-  ];
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
 
   if (loading) return <LoadingSpinner />;
   if (error) return <NetworkError error={error} onRetry={fetchIncidents} />;
@@ -66,7 +73,87 @@ export default function Incidents() {
           <p className="page-subtitle">Track and resolve platform alerts.</p>
         </div>
       </div>
-      <DataTable columns={columns} data={incidents} />
+      {incidents.map((row) => {
+        const isOpen = expandedId === row.id;
+        return (
+          <div key={row.id} className="glass-panel card-hover" style={{ marginBottom: '0.75rem', padding: 0 }}>
+            <div
+              onClick={() => toggleExpand(row.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                padding: '0.75rem 1rem', cursor: 'pointer',
+              }}
+            >
+              <div style={{ color: 'var(--text-secondary)', flexShrink: 0 }}>
+                {isOpen ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                  #{row.id}
+                </span>
+                <strong style={{ flex: 1, minWidth: 140 }}>{row.title}</strong>
+                {row.source && (
+                  <span className="repo-meta-item" style={{ fontSize: '0.75rem', gap: '0.3rem' }}>
+                    <SourceIcon source={row.source} />
+                    {formatSource(row.source)}
+                  </span>
+                )}
+                <span className={`badge ${row.severity}`} style={{ fontSize: '0.7rem' }}>{row.severity}</span>
+                <span className={`badge ${row.status === 'open' ? 'warning' : 'success'}`} style={{ fontSize: '0.7rem' }}>{row.status}</span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {new Date(row.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+              </div>
+              {row.status !== 'resolved' && (
+                <button
+                  className="btn btn-success"
+                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', flexShrink: 0 }}
+                  onClick={(e) => { e.stopPropagation(); resolveIncident(row.id); }}
+                >
+                  <FiCheckCircle size={12} /> Resolve
+                </button>
+              )}
+            </div>
+            {isOpen && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '1rem 1rem 1rem 2.75rem' }}>
+                {row.description && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</div>
+                    <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{row.description}</div>
+                  </div>
+                )}
+                {row.ai_summary && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      <FiCpu size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                      AI Summary
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{row.ai_summary}</div>
+                  </div>
+                )}
+                {row.suggested_fixes && row.suggested_fixes.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                      Suggested Fixes
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
+                      {row.suggested_fixes.map((fix, i) => (
+                        <li key={i} style={{ marginBottom: '0.2rem' }}>{fix}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {!row.description && !row.ai_summary && (!row.suggested_fixes || row.suggested_fixes.length === 0) && (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                    AI analysis pending...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
