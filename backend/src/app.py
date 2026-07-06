@@ -24,6 +24,7 @@ from routes.alertmanager import alertmanager_bp
 from routes.health import register_health_routes
 from utils.seed import seed_data
 from utils.logging import setup_logging
+from utils.metrics import register_metrics
 from orchestration.collectors.github_collector import GitHubEvidenceCollector
 from orchestration.collectors.jenkins_collector import JenkinsEvidenceCollector
 from orchestration.collectors.docker_collector import DockerEvidenceCollector
@@ -90,6 +91,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    register_metrics(app)
 
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/v1/projects')
