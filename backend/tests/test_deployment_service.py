@@ -235,6 +235,48 @@ class TestTriggerDeployment:
                 environment="dev", triggered_by="testuser",
             )
 
+    @patch("services.deployment_service.User")
+    @patch("services.deployment_service.DeploymentService._get_gh_actions")
+    @patch("services.deployment_service.db")
+    @patch("services.deployment_service.Deployment")
+    @patch("services.deployment_service.ConnectedProject")
+    def test_resolves_empty_commit_via_github_api(
+        self, mock_project_cls, mock_deployment_cls, mock_db, mock_get_gh, mock_user_cls,
+    ):
+        mock_project = MagicMock()
+        mock_project.id = 1
+        mock_project.github_owner = "owner"
+        mock_project.github_repo = "repo"
+        mock_project.full_name = "owner/repo"
+        mock_project_filter = MagicMock()
+        mock_project_filter.first.return_value = mock_project
+        mock_project_cls.query.filter_by.return_value = mock_project_filter
+
+        mock_user_filter = MagicMock()
+        mock_user_filter.first.return_value = MagicMock()
+        mock_user_cls.query.filter_by.return_value = mock_user_filter
+
+        mock_gh = MagicMock()
+        mock_gh.get_commit_sha.return_value = "resolved_sha_abc123"
+        mock_get_gh.return_value = mock_gh
+
+        def _make_deployment(**kwargs):
+            return make_mock_deployment(**kwargs)
+
+        mock_deployment_cls.side_effect = _make_deployment
+
+        result = DeploymentService.trigger_deployment(
+            project_id=1, branch="main", commit_sha="",
+            environment="dev", triggered_by="testuser",
+        )
+
+        assert result["commit_sha"] == "resolved_sha_abc123"
+        mock_gh.get_commit_sha.assert_called_once_with("owner", "repo", "main")
+        mock_gh.trigger_workflow_dispatch.assert_called_once_with(
+            owner="owner", repo="repo", workflow_id="deploy.yml",
+            ref="main", inputs={"environment": "dev", "commit_sha": "resolved_sha_abc123"},
+        )
+
     @patch("services.deployment_service.ConnectedProject")
     def test_raises_when_project_not_found(self, mock_project_cls):
         mock_project_filter = MagicMock()

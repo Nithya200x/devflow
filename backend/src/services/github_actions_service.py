@@ -53,6 +53,10 @@ class GitHubActionsService:
         resp.raise_for_status()
         return resp.text
 
+    def get_commit_sha(self, owner: str, repo: str, branch: str) -> str:
+        data = self._get(f"/repos/{owner}/{repo}/commits/{branch}")
+        return data["sha"]
+
     def trigger_workflow_dispatch(
         self, owner: str, repo: str, workflow_id: str = "deploy.yml",
         ref: str = "main", inputs: dict = None
@@ -71,6 +75,13 @@ class GitHubActionsService:
             raise PermissionError("GitHub API rate limit exceeded or workflow disabled")
         if resp.status_code == 404:
             raise FileNotFoundError(f"Workflow {workflow_id} not found in {owner}/{repo}")
+        if resp.status_code == 422:
+            body = resp.json()
+            logger.error(
+                "GitHub 422 dispatching workflow %s/%s: ref=%s inputs=%s — %s",
+                owner, repo, ref, inputs, body,
+            )
+            raise ValueError(f"GitHub rejected workflow inputs: {body}")
         resp.raise_for_status()
         return resp.status_code
 

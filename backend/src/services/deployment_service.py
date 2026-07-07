@@ -56,6 +56,9 @@ class DeploymentService:
         user = User.query.filter_by(username=triggered_by).first()
         gh = DeploymentService._get_gh_actions(user)
 
+        if not commit_sha:
+            commit_sha = gh.get_commit_sha(project.github_owner, project.github_repo, branch)
+
         dep = Deployment(
             project_id=project.id,
             repository=project.full_name,

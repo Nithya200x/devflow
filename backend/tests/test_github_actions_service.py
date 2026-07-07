@@ -230,6 +230,31 @@ class TestFormatJob:
                                      "number": None, "started_at": None, "completed_at": None}]
 
 
+class TestGetCommitSha:
+    def test_returns_sha_from_branch(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"sha": "abc123def456"}
+        with patch("services.github_actions_service.requests.get", return_value=mock_resp):
+            sha = service.get_commit_sha("owner", "repo", "main")
+        assert sha == "abc123def456"
+
+    def test_passes_branch_in_url(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"sha": "abc"}
+        with patch("services.github_actions_service.requests.get", return_value=mock_resp) as mock_get:
+            service.get_commit_sha("owner", "repo", "staging")
+        assert "commits/staging" in mock_get.call_args[0][0]
+
+    def test_404_raises_file_not_found(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        with patch("services.github_actions_service.requests.get", return_value=mock_resp):
+            with pytest.raises(FileNotFoundError):
+                service.get_commit_sha("owner", "repo", "nonexistent-branch")
+
+
 class TestTriggerWorkflowDispatch:
     def test_triggers_successfully(self, service):
         mock_resp = MagicMock()
@@ -273,3 +298,11 @@ class TestTriggerWorkflowDispatch:
         with patch("services.github_actions_service.requests.post", return_value=mock_resp):
             with pytest.raises(FileNotFoundError, match="Workflow deploy.yml not found"):
                 service.trigger_workflow_dispatch("owner", "repo")
+
+    def test_422_raises_value_error(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 422
+        mock_resp.json.return_value = {"message": "Invalid request.\n\nRequired input 'commit_sha' not provided"}
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp):
+            with pytest.raises(ValueError, match="GitHub rejected workflow inputs"):
+                service.trigger_workflow_dispatch("owner", "repo", inputs={"environment": "dev", "commit_sha": ""})
