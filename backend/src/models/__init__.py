@@ -1,3 +1,5 @@
+import uuid
+
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from utils.time import now
@@ -49,9 +51,19 @@ class Cluster(db.Model):
 class Deployment(db.Model):
     __tablename__ = 'deployment'
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    deployment_id = db.Column(db.String(36), unique=True, nullable=False, default=lambda: uuid.uuid4().hex[:12])
+    project_id = db.Column(db.Integer, db.ForeignKey('connected_project.id'), nullable=False)
+    repository = db.Column(db.String(255), default="")
+    commit_sha = db.Column(db.String(40), default="")
+    branch = db.Column(db.String(100), default="")
     environment = db.Column(db.String(20), default="dev")
-    status = db.Column(db.String(20), default="running")
+    status = db.Column(db.String(20), default="queued")
+    workflow_run_id = db.Column(db.Integer, nullable=True)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    triggered_by = db.Column(db.String(50), default="")
+    rollback_available = db.Column(db.Boolean, default=False)
+    logs_json = db.Column(db.Text, default="{}")
     deployed_by = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=now)
 

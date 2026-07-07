@@ -53,6 +53,27 @@ class GitHubActionsService:
         resp.raise_for_status()
         return resp.text
 
+    def trigger_workflow_dispatch(
+        self, owner: str, repo: str, workflow_id: str = "deploy.yml",
+        ref: str = "main", inputs: dict = None
+    ) -> int:
+        url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches"
+        body = {"ref": ref}
+        if inputs:
+            body["inputs"] = inputs
+        resp = requests.post(url, headers=self._headers(), json=body, timeout=30)
+        if resp.status_code == 204:
+            logger.info("Workflow dispatch triggered for %s/%s: ref=%s inputs=%s", owner, repo, ref, inputs)
+            return resp.status_code
+        if resp.status_code == 401:
+            raise PermissionError("GitHub token is invalid or expired")
+        if resp.status_code == 403:
+            raise PermissionError("GitHub API rate limit exceeded or workflow disabled")
+        if resp.status_code == 404:
+            raise FileNotFoundError(f"Workflow {workflow_id} not found in {owner}/{repo}")
+        resp.raise_for_status()
+        return resp.status_code
+
 
 def _format_run(r: dict) -> dict:
     created = r.get("run_started_at") or r.get("created_at", "")

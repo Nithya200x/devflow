@@ -359,3 +359,130 @@ class TestKubernetesService:
         health = svc.get_cluster_health()
         assert health["connected"] is False
         assert "API unavailable" in health.get("error", "")
+
+
+class TestGetRolloutStatus:
+    def test_returns_error_when_not_connected(self):
+        svc = KubernetesService()
+        result = svc.get_rollout_status("backend", "devflow")
+        assert result["error"] == "Kubernetes not connected"
+        assert result["status"] == "unknown"
+
+    @patch("services.kubernetes_service.client")
+    def test_returns_status_complete(self, mock_client):
+        dep = make_mock_deployment("backend", "devflow", replicas=3, ready=3, available=3)
+        dep.status.conditions = []
+        dep.status.unavailable_replicas = 0
+        dep.status.observed_generation = 2
+
+        mock_apps = MagicMock()
+        mock_apps.read_namespaced_deployment.return_value = dep
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        result = svc.get_rollout_status("backend", "devflow")
+        assert result["deployment"] == "backend"
+        assert result["namespace"] == "devflow"
+        assert result["status"] == "complete"
+        assert result["desired_replicas"] == 3
+        assert result["available_replicas"] == 3
+        assert result["ready_replicas"] == 3
+
+    @patch("services.kubernetes_service.client")
+    def test_returns_status_progressing(self, mock_client):
+        dep = make_mock_deployment("backend", "devflow", replicas=3, ready=1, available=0)
+        dep.status.updated_replicas = 1
+        dep.status.unavailable_replicas = 2
+        dep.status.observed_generation = 1
+
+        mock_apps = MagicMock()
+        mock_apps.read_namespaced_deployment.return_value = dep
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        result = svc.get_rollout_status("backend", "devflow")
+        assert result["status"] == "progressing"
+
+    @patch("services.kubernetes_service.client")
+    def test_returns_404_when_not_found(self, mock_client):
+        from kubernetes.client.rest import ApiException
+        mock_apps = MagicMock()
+        mock_apps.read_namespaced_deployment.side_effect = ApiException(status=404, reason="Not Found")
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        result = svc.get_rollout_status("nonexistent", "devflow")
+        assert result["status"] == "not_found"
+
+    @patch("services.kubernetes_service.client")
+    def test_returns_conditions(self, mock_client):
+        dep = make_mock_deployment("backend", "devflow", replicas=1, ready=1, available=1)
+        c1 = MagicMock()
+        c1.type = "Available"
+        c1.status = "True"
+        c1.reason = "MinimumReplicasAvailable"
+        c1.message = "Deployment has minimum availability."
+        c1.last_transition_time = None
+        dep.status.conditions = [c1]
+
+        mock_apps = MagicMock()
+        mock_apps.read_namespaced_deployment.return_value = dep
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        result = svc.get_rollout_status("backend", "devflow")
+        assert len(result["conditions"]) == 1
+        assert result["conditions"][0]["type"] == "Available"
+        assert result["conditions"][0]["reason"] == "MinimumReplicasAvailable"
+
+
+class TestPatchDeployment:
+    def test_returns_error_when_not_connected(self):
+        svc = KubernetesService()
+        result = svc.patch_deployment("backend", "devflow", {"spec": {"replicas": 3}})
+        assert result["error"] == "Kubernetes not connected"
+
+    @patch("services.kubernetes_service.client")
+    def test_patches_successfully(self, mock_client):
+        mock_apps = MagicMock()
+        mock_apps.patch_namespaced_deployment.return_value = MagicMock()
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        body = {"spec": {"replicas": 5}}
+        result = svc.patch_deployment("backend", "devflow", body)
+        assert result["success"] is True
+        assert result["name"] == "backend"
+        mock_apps.patch_namespaced_deployment.assert_called_once_with(
+            name="backend", namespace="devflow", body=body,
+        )
+
+    @patch("services.kubernetes_service.client")
+    def test_returns_error_on_api_exception(self, mock_client):
+        from kubernetes.client.rest import ApiException
+        mock_apps = MagicMock()
+        mock_apps.patch_namespaced_deployment.side_effect = ApiException(status=500, reason="Server Error")
+        mock_client.AppsV1Api.return_value = mock_apps
+
+        svc = KubernetesService()
+        svc._apps = mock_apps
+        svc._connected = True
+
+        result = svc.patch_deployment("backend", "devflow", {})
+        assert result["success"] is False
+        assert "500" in result["error"]

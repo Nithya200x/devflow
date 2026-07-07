@@ -228,3 +228,48 @@ class TestFormatJob:
         result = _format_job(raw)
         assert result["steps"] == [{"name": None, "status": None, "conclusion": None,
                                      "number": None, "started_at": None, "completed_at": None}]
+
+
+class TestTriggerWorkflowDispatch:
+    def test_triggers_successfully(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 204
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp) as mock_post:
+            status = service.trigger_workflow_dispatch(
+                owner="owner", repo="repo", workflow_id="deploy.yml",
+                ref="main", inputs={"environment": "dev", "commit_sha": "abc123"},
+            )
+        assert status == 204
+        args, kwargs = mock_post.call_args
+        assert "repos/owner/repo/actions/workflows/deploy.yml/dispatches" in args[0]
+        assert kwargs["json"]["ref"] == "main"
+        assert kwargs["json"]["inputs"]["environment"] == "dev"
+        assert kwargs["json"]["inputs"]["commit_sha"] == "abc123"
+
+    def test_triggers_without_inputs(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 204
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp) as mock_post:
+            service.trigger_workflow_dispatch(owner="owner", repo="repo", ref="main")
+        assert mock_post.call_args[1]["json"] == {"ref": "main"}
+
+    def test_401_raises_permission_error(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp):
+            with pytest.raises(PermissionError, match="token is invalid or expired"):
+                service.trigger_workflow_dispatch("owner", "repo")
+
+    def test_403_raises_permission_error(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp):
+            with pytest.raises(PermissionError, match="rate limit exceeded or workflow disabled"):
+                service.trigger_workflow_dispatch("owner", "repo")
+
+    def test_404_raises_file_not_found(self, service):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        with patch("services.github_actions_service.requests.post", return_value=mock_resp):
+            with pytest.raises(FileNotFoundError, match="Workflow deploy.yml not found"):
+                service.trigger_workflow_dispatch("owner", "repo")

@@ -141,6 +141,26 @@ def create_app():
                     )
                     db.session.commit()
                     logger.info("Applied missing column: incident.resolution_reason")
+            if "deployment" in inspector.get_table_names():
+                cols = [c["name"] for c in inspector.get_columns("deployment")]
+                for col, coltype in [
+                    ("deployment_id", "VARCHAR(36)"),
+                    ("repository", "VARCHAR(255) DEFAULT ''"),
+                    ("commit_sha", "VARCHAR(40) DEFAULT ''"),
+                    ("branch", "VARCHAR(100) DEFAULT ''"),
+                    ("workflow_run_id", "INTEGER"),
+                    ("started_at", "TIMESTAMP WITH TIME ZONE"),
+                    ("completed_at", "TIMESTAMP WITH TIME ZONE"),
+                    ("triggered_by", "VARCHAR(50) DEFAULT ''"),
+                    ("rollback_available", "BOOLEAN DEFAULT FALSE"),
+                    ("logs_json", "TEXT DEFAULT '{}'"),
+                ]:
+                    if col not in cols:
+                        db.session.execute(
+                            db.text(f"ALTER TABLE deployment ADD COLUMN {col} {coltype}")
+                        )
+                        logger.info("Applied missing column: deployment.%s", col)
+                db.session.commit()
         except Exception as e:
             db.session.rollback()
             logger.debug("Schema migration skipped: %s", e)

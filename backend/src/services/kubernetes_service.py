@@ -394,6 +394,72 @@ class KubernetesService:
             "unavailable_deployments": unavailable_deployments,
         }
 
+    def patch_deployment(self, name: str, namespace: str, body: dict) -> Dict[str, Any]:
+        if not self._apps:
+            return {"error": "Kubernetes not connected"}
+        try:
+            resp = self._apps.patch_namespaced_deployment(
+                name=name, namespace=namespace, body=body
+            )
+            return {"success": True, "name": name, "namespace": namespace}
+        except ApiException as e:
+            logger.error(f"Failed to patch deployment {namespace}/{name}: {e}")
+            return {"error": str(e), "success": False}
+
+    def get_rollout_status(self, name: str, namespace: str = "default") -> Dict[str, Any]:
+        if not self._apps:
+            return {"error": "Kubernetes not connected", "status": "unknown"}
+        try:
+            dep = self._apps.read_namespaced_deployment(name=name, namespace=namespace)
+            status = dep.status
+            spec = dep.spec
+            conditions = []
+            if status.conditions:
+                for c in status.conditions:
+                    conditions.append({
+                        "type": c.type,
+                        "status": c.status,
+                        "reason": c.reason or "",
+                        "message": c.message or "",
+                        "last_transition_time": to_iso(c.last_transition_time) or "",
+                    })
+            available = status.available_replicas or 0
+            desired = spec.replicas or 0
+            updated = status.updated_replicas or 0
+            ready = status.ready_replicas or 0
+
+            if desired == 0:
+                rollout_status = "paused"
+            elif updated == desired and available == desired:
+                rollout_status = "complete"
+            elif updated < desired:
+                rollout_status = "progressing"
+            elif available < updated:
+                rollout_status = "available"
+            else:
+                rollout_status = "unknown"
+
+            return {
+                "deployment": name,
+                "namespace": namespace,
+                "desired_replicas": desired,
+                "updated_replicas": updated,
+                "ready_replicas": ready,
+                "available_replicas": available,
+                "unavailable_replicas": status.unavailable_replicas or 0,
+                "observed_generation": status.observed_generation or 0,
+                "conditions": conditions,
+                "status": rollout_status,
+            }
+        except ApiException as e:
+            if e.status == 404:
+                return {"error": "Deployment not found", "status": "not_found"}
+            logger.error(f"Failed to get rollout status for {namespace}/{name}: {e}")
+            return {"error": str(e), "status": "error"}
+        except Exception as e:
+            logger.error(f"Failed to get rollout status for {namespace}/{name}: {e}")
+            return {"error": str(e), "status": "error"}
+
     def get_cluster_health(self) -> Dict[str, Any]:
         if not self._connected or not self._core:
             return {

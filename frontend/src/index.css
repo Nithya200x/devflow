@@ -1897,6 +1897,10 @@ tr:hover td {
   animation: checkmarkDraw 0.5s ease forwards;
 }
 
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
