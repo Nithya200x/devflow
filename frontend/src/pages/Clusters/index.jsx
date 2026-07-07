@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiServer, FiCpu, FiHardDrive, FiBox, FiActivity, FiList } from 'react-icons/fi';
+import { FiServer, FiBox, FiActivity, FiList } from 'react-icons/fi';
 import * as k8sService from '../../services/kubernetesService';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
+import { EmptyState } from '../../components/Common/EmptyState';
 import { usePolling } from '../../hooks/usePolling';
 
 function HealthCard({ health }) {
@@ -14,7 +15,9 @@ function HealthCard({ health }) {
           <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Cluster Health</h3>
           <span className="badge danger">Disconnected</span>
         </div>
-        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Kubernetes cluster is not reachable</p>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+          {health?.reason || 'Kubernetes cluster is not reachable'}
+        </p>
       </div>
     );
   }
@@ -46,6 +49,22 @@ function HealthCard({ health }) {
   );
 }
 
+function NotConfiguredSection({ icon: Icon, title, reason }) {
+  return (
+    <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+      <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Icon /> {title}
+      </h3>
+      <EmptyState
+        icon={FiServer}
+        message="Connect Cluster"
+        description={reason || 'Configure kubeconfig to connect to a Kubernetes cluster'}
+        action={{ label: 'Configure Kubernetes', onClick: () => {} }}
+      />
+    </div>
+  );
+}
+
 function PodsTable({ pods }) {
   if (!pods || pods.length === 0) {
     return (
@@ -53,7 +72,7 @@ function PodsTable({ pods }) {
         <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FiBox /> Pods
         </h3>
-        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No pods found</p>
+        <EmptyState icon={FiBox} message="No pods found" description="No pods are running in this cluster" />
       </div>
     );
   }
@@ -197,11 +216,18 @@ function ServicesTable({ services }) {
   );
 }
 
+function isNotConfigured(response) {
+  return response && response.configured === false;
+}
+
 export default function Clusters() {
   const [health, setHealth] = useState(null);
   const [pods, setPods] = useState([]);
+  const [podsNotConfigured, setPodsNotConfigured] = useState(false);
   const [deployments, setDeployments] = useState([]);
+  const [depNotConfigured, setDepNotConfigured] = useState(false);
   const [services, setServices] = useState([]);
+  const [svcNotConfigured, setSvcNotConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -209,13 +235,16 @@ export default function Clusters() {
     try {
       const [healthData, podsData, depData, svcData] = await Promise.all([
         k8sService.getKubernetesHealth().catch(() => ({ connected: false })),
-        k8sService.listPods().catch(() => ({ pods: [], count: 0 })),
-        k8sService.listDeployments().catch(() => ({ deployments: [], count: 0 })),
-        k8sService.listServices().catch(() => ({ services: [], count: 0 })),
+        k8sService.listPods().catch(() => ({ pods: [], count: 0, configured: false, reason: 'Kubernetes not connected' })),
+        k8sService.listDeployments().catch(() => ({ deployments: [], count: 0, configured: false, reason: 'Kubernetes not connected' })),
+        k8sService.listServices().catch(() => ({ services: [], count: 0, configured: false, reason: 'Kubernetes not connected' })),
       ]);
       setHealth(healthData);
+      setPodsNotConfigured(isNotConfigured(podsData));
       setPods(podsData.pods || []);
+      setDepNotConfigured(isNotConfigured(depData));
       setDeployments(depData.deployments || []);
+      setSvcNotConfigured(isNotConfigured(svcData));
       setServices(svcData.services || []);
       setError(null);
     } catch (err) {
@@ -245,9 +274,21 @@ export default function Clusters() {
 
       <div className="grid-cards stagger-children">
         <HealthCard health={health} />
-        <PodsTable pods={pods} />
-        <DeploymentsTable deployments={deployments} />
-        <ServicesTable services={services} />
+        {podsNotConfigured ? (
+          <NotConfiguredSection icon={FiBox} title="Pods" reason={health?.reason || 'Kubernetes cluster not connected'} />
+        ) : (
+          <PodsTable pods={pods} />
+        )}
+        {depNotConfigured ? (
+          <NotConfiguredSection icon={FiActivity} title="Deployments" reason={health?.reason || 'Kubernetes cluster not connected'} />
+        ) : (
+          <DeploymentsTable deployments={deployments} />
+        )}
+        {svcNotConfigured ? (
+          <NotConfiguredSection icon={FiList} title="Services" reason={health?.reason || 'Kubernetes cluster not connected'} />
+        ) : (
+          <ServicesTable services={services} />
+        )}
       </div>
     </div>
   );

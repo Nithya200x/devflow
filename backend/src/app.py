@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 load_dotenv(dotenv_path)
 
-from flask import Flask
+import uuid
+from flask import Flask, g, request
 from flask_cors import CORS
 from config.config import Config, validate_environment
 from extensions import db, migrate, jwt
@@ -24,7 +25,6 @@ from routes.grafana import grafana_bp
 from routes.alertmanager import alertmanager_bp
 from routes.pipelines import pipelines_bp
 from routes.health import register_health_routes
-from utils.seed import seed_data
 from utils.logging import setup_logging
 from utils.metrics import register_metrics
 from orchestration.collectors.github_collector import GitHubEvidenceCollector
@@ -96,6 +96,19 @@ def create_app():
 
     register_metrics(app)
 
+    @app.before_request
+    def set_request_id():
+        from utils.logging import set_request_id
+        rid = request.headers.get("X-Request-ID", uuid.uuid4().hex[:12])
+        set_request_id(rid)
+        g.request_id = rid
+
+    @app.after_request
+    def add_request_id(response):
+        if hasattr(g, "request_id"):
+            response.headers["X-Request-ID"] = g.request_id
+        return response
+
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/v1/projects')
     app.register_blueprint(deployments_bp, url_prefix='/api/v1/deployments')
@@ -164,13 +177,6 @@ def create_app():
         except Exception as e:
             db.session.rollback()
             logger.debug("Schema migration skipped: %s", e)
-
-        try:
-            import models
-            seed_data()
-        except Exception as e:
-            db.session.rollback()
-            logger.warning("Seed data skipped: %s", e)
 
         try:
             from models import User

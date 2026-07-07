@@ -540,11 +540,17 @@ function PipelineTab({ overview }) {
         <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FiBox /> Docker
         </h3>
-        {!overview.docker?.connected ? (
+        {overview.docker?.service_status === 'unavailable' ? (
           <div className="empty-state" style={{ padding: '1.5rem' }}>
             <FiBox size={24} />
-            <h3>No Docker containers found</h3>
-            <p>Waiting for container configuration</p>
+            <h3>Docker Engine not connected</h3>
+            <p>{overview.docker?.error_message || 'Set DOCKER_HOST or install Docker to enable container monitoring'}</p>
+          </div>
+        ) : !overview.docker?.configured ? (
+          <div className="empty-state" style={{ padding: '1.5rem' }}>
+            <FiBox size={24} />
+            <h3>Docker not configured</h3>
+            <p>Configure a Docker container for this project to enable monitoring</p>
           </div>
         ) : overview.docker?.container_name ? (
           <div className="repo-meta-item">
@@ -564,7 +570,7 @@ function PipelineTab({ overview }) {
   );
 }
 
-function InfrastructureTab({ overview }) {
+function InfrastructureTab({ overview, onDeploy }) {
   const k8s = overview.kubernetes || {};
   const pods = k8s.pods || [];
   return (
@@ -577,7 +583,11 @@ function InfrastructureTab({ overview }) {
           <div className="empty-state" style={{ padding: '1.5rem' }}>
             <FiServer size={24} />
             <h3>No Kubernetes deployment linked</h3>
-            <p>Waiting for deployment configuration</p>
+            <p>Deploy this repository to create a Kubernetes deployment</p>
+            <button className="btn btn-primary" style={{ marginTop: '0.75rem' }} onClick={onDeploy}>
+              <FiArrowUp size={14} style={{ marginRight: '0.35rem' }} />
+              Deploy Repository
+            </button>
           </div>
         ) : k8s.namespace ? (
           <>
@@ -667,7 +677,6 @@ function MetricsTab({ overview }) {
   const s = data || {};
   const status = s.status || 'no_data';
   const requests = s.requests || 0;
-  const errors = s.errors || 0;
   const errorRate = s.errorRate || 0;
   const avgLatency = s.avgLatency || 0;
   const activeRequests = s.activeRequests || 0;
@@ -944,6 +953,10 @@ export default function RepositoryCommandCenter() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const pollingRef = useRef(null);
 
+  const handleDeploy = useCallback(() => {
+    setActiveTab('pipeline');
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       const data = await projectService.getProjectOverview(id);
@@ -1075,7 +1088,7 @@ export default function RepositoryCommandCenter() {
 
       {activeTab === 'overview' && <OverviewTab overview={overview} />}
       {activeTab === 'pipeline' && <PipelineTab overview={overview} />}
-      {activeTab === 'infrastructure' && <InfrastructureTab overview={overview} />}
+      {activeTab === 'infrastructure' && <InfrastructureTab overview={overview} onDeploy={handleDeploy} />}
       {activeTab === 'metrics' && <MetricsTab overview={overview} />}
       {activeTab === 'incidents' && <IncidentsTab overview={overview} />}
       {activeTab === 'ai-rca' && <AiRcaTab overview={overview} />}
