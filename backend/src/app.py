@@ -22,6 +22,7 @@ from routes.metrics import metrics_bp
 from routes.prometheus import prometheus_bp
 from routes.grafana import grafana_bp
 from routes.alertmanager import alertmanager_bp
+from routes.pipelines import pipelines_bp
 from routes.health import register_health_routes
 from utils.seed import seed_data
 from utils.logging import setup_logging
@@ -109,6 +110,7 @@ def create_app():
     app.register_blueprint(prometheus_bp, url_prefix='/api/v1/prometheus')
     app.register_blueprint(grafana_bp, url_prefix='/api/v1/grafana')
     app.register_blueprint(alertmanager_bp, url_prefix='/api/v1/alertmanager')
+    app.register_blueprint(pipelines_bp, url_prefix='/api/v1/pipelines')
 
     _init_orchestration(app)
 

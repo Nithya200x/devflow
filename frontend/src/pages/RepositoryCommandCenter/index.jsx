@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import * as projectService from '../../services/projectService';
 import { getMetricsSummary } from '../../services/metricsService';
+import * as pipelineService from '../../services/pipelineService';
 import { NetworkError } from '../../components/Common/NetworkError';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
@@ -281,27 +282,82 @@ function OverviewTab({ overview }) {
 }
 
 function PipelineTab({ overview }) {
-  const builds = overview.jenkins?.build_history || [];
   const github = overview.github || {};
+  const p = overview.project || {};
+  const [runs, setRuns] = useState(null);
+  const [latestRun, setLatestRun] = useState(null);
+  const [jobs, setJobs] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const projectId = p.id;
+
+  useEffect(() => {
+    if (!projectId || !github.connected) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [runsData, latest] = await Promise.all([
+          pipelineService.getPipelineRuns(projectId),
+          pipelineService.getLatestPipeline(projectId),
+        ]);
+        if (cancelled) return;
+        setRuns(Array.isArray(runsData) ? runsData : runsData.runs || []);
+        setLatestRun(latest || null);
+
+        if (latest?.id) {
+          const jobsData = await pipelineService.getPipelineJobs(projectId, latest.id);
+          if (!cancelled) setJobs(Array.isArray(jobsData) ? jobsData : []);
+        }
+      } catch (err) {
+        if (!cancelled && err.response?.status !== 401) setError(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId, github.connected]);
+
+  function conclusionBadge(conclusion) {
+    if (conclusion === 'success') return 'success';
+    if (conclusion === 'failure' || conclusion === 'cancelled') return 'danger';
+    if (conclusion === 'neutral' || conclusion === 'skipped') return 'neutral';
+    return 'warning';
+  }
+
+  function statusBadge(status) {
+    if (status === 'completed') return conclusionBadge(latestRun?.conclusion);
+    if (status === 'in_progress' || status === 'queued' || status === 'pending') return 'warning';
+    return 'neutral';
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds && seconds !== 0) return '-';
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  }
+
   return (
     <div className="page-enter">
       <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
         <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FiGitBranch /> GitHub
+          <FiGitBranch /> GitHub Connection
         </h3>
         {github.connected && !github.error ? (
-          <>
-            <div className="repo-meta-item" style={{ marginBottom: '0.5rem' }}>
-              <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
-              <span>Repository connected · {github.latest_commit ? 'Latest commit synced' : 'Awaiting data'}</span>
-            </div>
-            {github.latest_commit && (
-              <div className="repo-meta-item">
-                <FiActivity size={14} style={{ color: 'var(--accent-cyan)' }} />
-                <span>{github.latest_commit}</span>
-              </div>
-            )}
-          </>
+          <div className="repo-meta-item">
+            <FiCheckCircle size={14} style={{ color: 'var(--success-color)' }} />
+            <span>Connected · {p.full_name || `${p.owner || '?'}/${p.name}`}</span>
+          </div>
         ) : github.error ? (
           <div className="repo-meta-item">
             <FiAlertTriangle size={14} style={{ color: 'var(--warning-color)' }} />
@@ -316,46 +372,167 @@ function PipelineTab({ overview }) {
       </div>
 
       <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
-        <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FiTerminal /> Jenkins Pipeline
-        </h3>
-        {!overview.jenkins?.connected ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiTerminal /> GitHub Actions
+          </h3>
+          {github.connected && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); setError(null); setRuns(null); setLatestRun(null); setJobs(null); }} disabled={loading}>
+              <FiRefreshCw size={14} />
+            </button>
+          )}
+        </div>
+
+        {!github.connected ? (
           <div className="empty-state" style={{ padding: '1.5rem' }}>
             <FiTerminal size={24} />
-            <h3>No Jenkins pipeline detected</h3>
-            <p>Waiting for pipeline configuration</p>
+            <h3>Connect GitHub to view pipelines</h3>
+            <p>Link your GitHub account in the GitHub tab to see Actions workflow runs</p>
           </div>
-        ) : builds.length === 0 ? (
+        ) : loading ? (
+          <LoadingSpinner text="Loading workflow runs..." />
+        ) : error ? (
+          <div className="repo-meta-item" style={{ justifyContent: 'center', padding: '0.75rem' }}>
+            <FiAlertTriangle size={14} style={{ color: 'var(--warning-color)' }} />
+            <span style={{ color: 'var(--text-secondary)' }}>Could not load workflow data</span>
+          </div>
+        ) : !runs || runs.length === 0 ? (
           <div className="empty-state" style={{ padding: '1.5rem' }}>
             <FiTerminal size={24} />
-            <h3>Pipeline configured</h3>
-            <p>No builds yet — awaiting first deployment</p>
+            <h3>No workflow runs found</h3>
+            <p>No GitHub Actions workflows have been triggered for this repository</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr><th>Build</th><th>Status</th><th>Duration</th><th>Timestamp</th></tr>
-              </thead>
-              <tbody>
-                {builds.slice(0, 10).map((b, i) => (
-                  <tr key={b.number || i}>
-                    <td style={{ fontWeight: 600 }}>#{b.number}</td>
-                    <td>
-                      <span className={`badge ${b.result === 'SUCCESS' ? 'success' : b.result === 'FAILURE' ? 'danger' : 'warning'}`}>
-                        {b.result || 'PENDING'}
-                      </span>
-                    </td>
-                    <td>{b.duration ? `${(b.duration / 1000).toFixed(1)}s` : '-'}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      <FiClock size={12} style={{ marginRight: '0.3rem', display: 'inline' }} />
-                      {b.timestamp ? new Date(b.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {latestRun && (
+              <div className="glass-panel" style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <h4 style={{ fontSize: '0.9rem' }}>Latest Workflow</h4>
+                    <span className={`badge ${statusBadge(latestRun.status)}`}>
+                      {latestRun.conclusion || latestRun.status}
+                    </span>
+                  </div>
+                  {latestRun.html_url && (
+                    <a href={latestRun.html_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem' }}>
+                      <FiExternalLink size={12} style={{ marginRight: '0.25rem' }} />
+                      View on GitHub
+                    </a>
+                  )}
+                </div>
+                <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div>
+                    <div className="deploy-info-label">Workflow</div>
+                    <div className="deploy-info-value" style={{ fontSize: '0.85rem' }}>{latestRun.name || latestRun.display_title || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="deploy-info-label">Branch</div>
+                    <div className="deploy-info-value" style={{ fontSize: '0.85rem' }}>
+                      <FiGitBranch size={12} style={{ marginRight: '0.25rem', display: 'inline' }} />
+                      {latestRun.head_branch || '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="deploy-info-label">Commit</div>
+                    <div className="deploy-info-value" style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>
+                      {latestRun.head_sha ? latestRun.head_sha.substring(0, 7) : '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="deploy-info-label">Duration</div>
+                    <div className="deploy-info-value">{formatDuration(latestRun.duration_seconds)}</div>
+                  </div>
+                  <div>
+                    <div className="deploy-info-label">Triggered by</div>
+                    <div className="deploy-info-value" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {latestRun.actor?.avatar_url && (
+                        <img src={latestRun.actor.avatar_url} alt="" style={{ width: 18, height: 18, borderRadius: '50%' }} />
+                      )}
+                      <FiUser size={12} /> {latestRun.actor?.login || latestRun.triggering_actor?.login || '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="deploy-info-label">Started</div>
+                    <div className="deploy-info-value" style={{ fontSize: '0.8rem' }}>
+                      <FiClock size={12} style={{ marginRight: '0.25rem', display: 'inline' }} />
+                      {formatDate(latestRun.created_at)}
+                    </div>
+                  </div>
+                </div>
+
+                {jobs && jobs.length > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Jobs</h4>
+                    {jobs.map((job) => (
+                      <div key={job.id} className="glass-panel" style={{ padding: '0.75rem', marginBottom: '0.5rem', background: 'rgba(0,0,0,0.15)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{job.name}</span>
+                          <span className={`badge ${conclusionBadge(job.conclusion)}`}>
+                            {job.conclusion || job.status}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {job.steps.map((step) => (
+                            <div key={step.number} style={{
+                              display: 'flex', alignItems: 'center', gap: '0.35rem',
+                              padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.75rem', background: 'rgba(255,255,255,0.04)',
+                            }}>
+                              <span style={{
+                                width: 8, height: 8, borderRadius: '50%',
+                                background: step.conclusion === 'success' ? 'var(--success-color)' :
+                                            step.conclusion === 'failure' || step.conclusion === 'cancelled' ? 'var(--danger-color)' :
+                                            step.status === 'in_progress' ? 'var(--warning-color)' :
+                                            step.status === 'queued' ? 'var(--text-muted)' : 'var(--text-muted)',
+                                display: 'inline-block', flexShrink: 0,
+                              }} />
+                              <span>{step.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                Recent Runs ({runs.length})
+              </h4>
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr><th>Workflow</th><th>Status</th><th>Branch</th><th>Duration</th><th>Triggered by</th><th>Started</th></tr>
+                  </thead>
+                  <tbody>
+                    {runs.slice(0, 20).map((run) => (
+                      <tr key={run.id}>
+                        <td style={{ fontWeight: 500, fontSize: '0.85rem' }}>{run.name || run.display_title || '-'}</td>
+                        <td>
+                          <span className={`badge ${conclusionBadge(run.conclusion)}`}>
+                            {run.conclusion || run.status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem' }}>
+                          <FiGitBranch size={11} style={{ marginRight: '0.2rem', display: 'inline' }} />
+                          {run.head_branch || '-'}
+                        </td>
+                        <td style={{ fontSize: '0.82rem' }}>{formatDuration(run.duration_seconds)}</td>
+                        <td style={{ fontSize: '0.82rem' }}>
+                          {run.actor?.login || run.triggering_actor?.login || '-'}
+                        </td>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {formatDate(run.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
