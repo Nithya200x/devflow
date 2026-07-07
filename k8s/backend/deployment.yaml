@@ -19,10 +19,11 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "5000"
     spec:
+      serviceAccountName: backend
       containers:
         - name: backend
           image: devflow-backend:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           env:

@@ -394,6 +394,42 @@ class KubernetesService:
             "unavailable_deployments": unavailable_deployments,
         }
 
+    def get_cluster_health(self) -> Dict[str, Any]:
+        if not self._connected or not self._core:
+            return {
+                "connected": False,
+                "nodes_total": 0,
+                "nodes_ready": 0,
+                "pods_running": 0,
+                "pods_failed": 0,
+            }
+        try:
+            nodes = self.list_nodes()
+            pods = self.list_pods()
+
+            nodes_total = len(nodes)
+            nodes_ready = sum(1 for n in nodes if n.get("status") == "Ready")
+            pods_running = sum(1 for p in pods if p.get("phase") == "Running")
+            pods_failed = sum(1 for p in pods if p.get("phase") == "Failed")
+
+            return {
+                "connected": True,
+                "nodes_total": nodes_total,
+                "nodes_ready": nodes_ready,
+                "pods_running": pods_running,
+                "pods_failed": pods_failed,
+            }
+        except Exception as e:
+            logger.error("Failed to get cluster health: %s", e)
+            return {
+                "connected": False,
+                "error": str(e),
+                "nodes_total": 0,
+                "nodes_ready": 0,
+                "pods_running": 0,
+                "pods_failed": 0,
+            }
+
     def list_namespaces(self) -> List[Dict[str, Any]]:
         if not self._core:
             return []

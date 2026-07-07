@@ -1,22 +1,222 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { FiCpu, FiHardDrive } from 'react-icons/fi';
-import * as clusterService from '../../services/clusterService';
-import { LogViewer } from '../../components/Terminal/LogViewer';
+import { useState, useEffect, useCallback } from 'react';
+import { FiServer, FiCpu, FiHardDrive, FiBox, FiActivity, FiList } from 'react-icons/fi';
+import * as k8sService from '../../services/kubernetesService';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
 import { usePolling } from '../../hooks/usePolling';
 
+function HealthCard({ health }) {
+  if (!health || !health.connected) {
+    return (
+      <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <FiServer size={18} />
+          <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Cluster Health</h3>
+          <span className="badge danger">Disconnected</span>
+        </div>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Kubernetes cluster is not reachable</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <FiServer size={18} />
+        <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Cluster Health</h3>
+        <span className="badge success">Connected</span>
+      </div>
+      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Nodes</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fff' }}>
+            {health.nodes_ready}<span style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}> / {health.nodes_total}</span>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pods Running</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{health.pods_running}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pods Failed</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: health.pods_failed > 0 ? '#ef4444' : 'var(--text-secondary)' }}>{health.pods_failed}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PodsTable({ pods }) {
+  if (!pods || pods.length === 0) {
+    return (
+      <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FiBox /> Pods
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No pods found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <FiBox size={18} />
+        <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Pods</h3>
+        <span className="badge info">{pods.length} total</span>
+      </div>
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Namespace</th>
+              <th>Status</th>
+              <th>Restarts</th>
+              <th>Age</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pods.slice(0, 50).map((pod, i) => (
+              <tr key={pod.name || i}>
+                <td style={{ fontWeight: 600, fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{pod.name}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{pod.namespace}</td>
+                <td>
+                  <span className={`badge ${pod.status === 'Running' ? 'success' : pod.status === 'Pending' ? 'pending' : 'danger'}`}>
+                    {pod.status}
+                  </span>
+                </td>
+                <td style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{pod.restart_count}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{pod.start_time ? new Date(pod.start_time).toLocaleString() : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DeploymentsTable({ deployments }) {
+  if (!deployments || deployments.length === 0) {
+    return (
+      <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FiActivity /> Deployments
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No deployments found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <FiActivity size={18} />
+        <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Deployments</h3>
+        <span className="badge info">{deployments.length} total</span>
+      </div>
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Namespace</th>
+              <th>Ready</th>
+              <th>Desired</th>
+              <th>Available</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deployments.map((dep, i) => (
+              <tr key={dep.name || i}>
+                <td style={{ fontWeight: 600, fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{dep.name}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{dep.namespace}</td>
+                <td>
+                  <span className={`badge ${dep.ready_replicas > 0 ? 'success' : 'danger'}`}>
+                    {dep.ready_replicas}
+                  </span>
+                </td>
+                <td style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{dep.replicas}</td>
+                <td style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{dep.available_replicas}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ServicesTable({ services }) {
+  if (!services || services.length === 0) {
+    return (
+      <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FiList /> Services
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No services found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-panel" style={{ gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <FiList size={18} />
+        <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Services</h3>
+        <span className="badge info">{services.length} total</span>
+      </div>
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Namespace</th>
+              <th>Type</th>
+              <th>Cluster IP</th>
+              <th>Ports</th>
+            </tr>
+          </thead>
+          <tbody>
+            {services.map((svc, i) => (
+              <tr key={svc.name || i}>
+                <td style={{ fontWeight: 600, fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>{svc.name}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{svc.namespace}</td>
+                <td><span className="badge neutral">{svc.type}</span></td>
+                <td style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{svc.cluster_ip}</td>
+                <td style={{ fontFamily: 'var(--mono-font)', fontSize: '0.8rem' }}>
+                  {svc.ports && svc.ports.map(p => `${p.port}${p.protocol ? '/' + p.protocol : ''}`).join(', ')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Clusters() {
-  const [clusters, setClusters] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [selectedCluster, setSelectedCluster] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [pods, setPods] = useState([]);
+  const [deployments, setDeployments] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchClusters = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     try {
-      const data = await clusterService.getClusters();
-      setClusters(data);
+      const [healthData, podsData, depData, svcData] = await Promise.all([
+        k8sService.getKubernetesHealth().catch(() => ({ connected: false })),
+        k8sService.listPods().catch(() => ({ pods: [], count: 0 })),
+        k8sService.listDeployments().catch(() => ({ deployments: [], count: 0 })),
+        k8sService.listServices().catch(() => ({ services: [], count: 0 })),
+      ]);
+      setHealth(healthData);
+      setPods(podsData.pods || []);
+      setDeployments(depData.deployments || []);
+      setServices(svcData.services || []);
       setError(null);
     } catch (err) {
       setError(err);
@@ -26,106 +226,29 @@ export default function Clusters() {
   }, []);
 
   useEffect(() => {
-    fetchClusters();
-  }, [fetchClusters]);
+    fetchAll();
+  }, [fetchAll]);
 
-  usePolling(fetchClusters, 5000, !error);
-
-  useEffect(() => {
-    if (!selectedCluster) return;
-    const interval = setInterval(async () => {
-      try {
-        const data = await clusterService.getClusterLogs(selectedCluster);
-        setLogs(prev => [...prev, ...data.logs].slice(-30));
-      } catch {
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [selectedCluster]);
-
-  const handleClusterSelect = (id) => {
-    setSelectedCluster(id);
-    setLogs([]);
-  };
+  usePolling(fetchAll, 10000);
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <NetworkError error={error} onRetry={fetchClusters} />;
+  if (error) return <NetworkError error={error} onRetry={fetchAll} />;
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Clusters</h1>
-          <p className="page-subtitle">Real-time node status and telemetry.</p>
+          <h1 className="page-title">Kubernetes</h1>
+          <p className="page-subtitle">Real-time cluster monitoring from the Kubernetes API.</p>
         </div>
       </div>
 
-      <div className="grid-cards" style={{ marginBottom: '2.5rem' }}>
-        {clusters.map(c => (
-          <div 
-            key={c.id} 
-            className="glass-panel" 
-            style={{ 
-              cursor: 'pointer', 
-              borderColor: selectedCluster === c.id ? 'rgba(59, 130, 246, 0.5)' : '',
-              boxShadow: selectedCluster === c.id ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : ''
-            }} 
-            onClick={() => handleClusterSelect(c.id)}
-          >
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem'}}>
-              <div>
-                <h3 style={{ margin: 0, color: '#fff' }}>{c.name}</h3>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ID: #{c.id}</span>
-              </div>
-              <span className={`badge ${c.status}`}>{c.status}</span>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Nodes</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.node_count}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pods</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{c.pod_count}</div>
-              </div>
-            </div>
-
-            <div className="progress-container">
-              <div className="progress-header">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiCpu /> CPU Usage</span>
-                <span style={{ color: c.cpu_percent > 80 ? 'var(--danger-color)' : '#fff' }}>{c.cpu_percent}%</span>
-              </div>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ 
-                  width: `${c.cpu_percent}%`, 
-                  background: c.cpu_percent > 80 ? 'var(--danger-color)' : 'var(--accent-color)'
-                }}></div>
-              </div>
-            </div>
-
-            <div className="progress-container">
-              <div className="progress-header">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><FiHardDrive /> Memory</span>
-                <span style={{ color: c.mem_percent > 80 ? 'var(--warning-color)' : '#fff' }}>{c.mem_percent}%</span>
-              </div>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ 
-                  width: `${c.mem_percent}%`, 
-                  background: c.mem_percent > 80 ? 'var(--warning-color)' : 'var(--success-color)' 
-                }}></div>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="grid-cards stagger-children">
+        <HealthCard health={health} />
+        <PodsTable pods={pods} />
+        <DeploymentsTable deployments={deployments} />
+        <ServicesTable services={services} />
       </div>
-
-      {selectedCluster && (
-        <LogViewer 
-          logs={logs} 
-          title={`Live Logs: ${clusters.find(c => c.id === selectedCluster)?.name}`}
-        />
-      )}
     </div>
   );
 }

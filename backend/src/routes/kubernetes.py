@@ -141,6 +141,15 @@ def list_ingresses():
     return jsonify({"ingresses": ingresses, "count": len(ingresses)}), 200
 
 
+@kubernetes_bp.route("/cluster-health", methods=["GET"])
+@jwt_required()
+def cluster_health():
+    if not _k8s.connected:
+        _k8s.connect()
+    health = _k8s.get_cluster_health()
+    return jsonify(health), 200 if health.get("connected") else 503
+
+
 @kubernetes_bp.route("/metrics", methods=["GET"])
 @jwt_required()
 def get_metrics():
