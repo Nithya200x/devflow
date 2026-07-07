@@ -45,8 +45,8 @@ class AuthService:
         if not re.match(email_regex, email.strip()):
             return {"msg": "Invalid email format"}, None
 
-        if len(password) < 6:
-            return {"msg": "Password must be at least 6 characters"}, None
+        if len(password) < 8:
+            return {"msg": "Password must be at least 8 characters"}, None
 
         username = username.strip()
         email = email.strip()

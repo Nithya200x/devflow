@@ -78,7 +78,7 @@ class TestRegister:
             'password': '123'
         })
         assert resp.status_code == 400
-        assert resp.get_json()['msg'] == 'Password must be at least 6 characters'
+        assert resp.get_json()['msg'] == 'Password must be at least 8 characters'
 
     def test_register_duplicate_username(self, client, seeded_user):
         resp = client.post('/api/v1/auth/register', json={

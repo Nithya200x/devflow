@@ -44,7 +44,7 @@ jobs:
         working-directory: backend
 
       - name: Run backend tests
-        run: python -m pytest tests/ -v --ignore=src/acceptance_test.py
+        run: python -m pytest tests/ -v
         working-directory: backend
         env:
           DATABASE_URL: 'sqlite:///:memory:'

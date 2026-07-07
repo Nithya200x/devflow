@@ -35,6 +35,6 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m pytest tests/ -v --ignore=src/acceptance_test.py
+          python -m pytest tests/ -v
         env:
           DATABASE_URL: 'sqlite:///:memory:'

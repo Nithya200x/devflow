@@ -2,26 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { FiTrendingUp, FiBarChart2, FiPieChart, FiActivity, FiCpu, FiHardDrive, FiAlertTriangle } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import * as analyticsService from '../../services/analyticsService';
+import { StatCard } from '../../components/Cards/StatCard';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
 
 const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
-
-function StatCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="glass-panel" style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-          <Icon size={18} />
-        </div>
-        <div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{value}</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{label}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AnalyticsDashboard() {
   const [data, setData] = useState(null);

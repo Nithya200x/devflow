@@ -4,22 +4,11 @@ import {
   FiArrowLeft, FiMonitor, FiExternalLink, FiRefreshCw,
   FiActivity, FiAlertTriangle, FiClock, FiCpu, FiCheckCircle
 } from 'react-icons/fi';
+import { StatCard } from '../../components/Cards/StatCard';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
 import { getMetricsSummary } from '../../services/metricsService';
 import config from '../../config/config';
-
-function StatCard({ icon: Icon, label, value, color = 'blue' }) {
-  return (
-    <div className="glass-panel card-hover stat-card" style={{ gap: '1rem' }}>
-      <div className={`stat-icon-wrap ${color}`}><Icon size={22} /></div>
-      <div className="stat-body">
-        <h3>{label}</h3>
-        <p>{value}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function MetricsDashboard() {
   const navigate = useNavigate();

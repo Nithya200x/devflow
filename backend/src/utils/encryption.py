@@ -4,7 +4,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-_SALT = b'devflow-token-encryption-salt'
+_SALT = os.getenv("TOKEN_ENCRYPTION_SALT", "devflow-token-encryption-salt").encode()
 
 def _derive_key(master_key: str) -> bytes:
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=_SALT, iterations=600000)

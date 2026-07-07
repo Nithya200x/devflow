@@ -9,7 +9,7 @@ from flask import Flask, g, request
 from flask_cors import CORS
 from config.config import Config, validate_environment
 from extensions import db, migrate, jwt
-from routes.auth import auth_bp
+from routes.auth import auth_bp, limiter as auth_limiter
 from routes.projects import projects_bp
 from routes.deployments import deployments_bp
 from routes.clusters import clusters_bp
@@ -91,6 +91,9 @@ def create_app():
     else:
         CORS(app)
         logger.info("CORS: no FRONTEND_URL set — allowing all origins (dev mode)")
+
+    auth_limiter.init_app(app)
+    logger.info("Rate limiter initialized (10/min login, 5/min register)")
 
     db.init_app(app)
     migrate.init_app(app, db)

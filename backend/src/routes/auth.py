@@ -1,10 +1,15 @@
 from flask import Blueprint, jsonify, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from services.auth_service import AuthService
 
 auth_bp = Blueprint('auth', __name__)
 
+limiter = Limiter(key_func=get_remote_address)
+
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data = request.get_json()
     if not data:
@@ -20,6 +25,7 @@ def login():
 
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     data = request.get_json()
     if not data:
