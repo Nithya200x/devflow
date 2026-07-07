@@ -278,3 +278,70 @@ def test_detector_find_open_incident_has_context_from_thread_target():
 
     assert len(results) == 1
     assert results[0][0] == "ok", f"_find_open_incident failed: {results[0]}"
+
+
+def test_detector_recovers_from_failed_cycle():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+    import threading
+
+    app = create_app()
+    detector = PrometheusIncidentDetector(interval=0.2)
+
+    call_count = [0]
+    cycle2_db_ok = [False]
+    done = threading.Event()
+
+    def alternate():
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise Exception("simulated cycle 1 failure")
+        try:
+            from models import Incident
+            _ = Incident.query.count()
+            cycle2_db_ok[0] = True
+        except Exception:
+            cycle2_db_ok[0] = False
+        done.set()
+
+    detector._check_triggers = alternate
+    detector.start(app)
+    done.wait(timeout=10)
+    detector.stop()
+
+    assert call_count[0] >= 2, "Should have run at least 2 cycles"
+    assert cycle2_db_ok[0] is True, "Cycle 2 DB access should succeed after cycle 1 failure"
+
+
+def test_db_session_remove_called_after_detector_cycle():
+    from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+    from extensions import db
+    import threading
+
+    app = create_app()
+    detector = PrometheusIncidentDetector(interval=0.1)
+
+    remove_called = [False]
+    cycle_done = threading.Event()
+
+    original_remove = db.session.remove
+
+    def tracked_remove(*args, **kwargs):
+        remove_called[0] = True
+        return original_remove(*args, **kwargs)
+
+    def quick_cycle():
+        cycle_done.set()
+
+    detector._check_triggers = quick_cycle
+    db.session.remove = tracked_remove
+
+    try:
+        detector.start(app)
+        cycle_done.wait(timeout=5)
+        detector.stop()
+        import time
+        time.sleep(0.1)
+
+        assert remove_called[0], "db.session.remove should have been called after a cycle"
+    finally:
+        db.session.remove = original_remove

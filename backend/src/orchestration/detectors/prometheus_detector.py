@@ -64,16 +64,26 @@ class PrometheusIncidentDetector:
     def _run(self):
         time.sleep(5)
         logger.info("Prometheus detector background loop started")
-
-        with self._app.app_context():
-            self._run_loop()
+        self._run_loop()
 
     def _run_loop(self):
+        from extensions import db
+
         while not self._stop.is_set():
-            try:
-                self._check_triggers()
-            except Exception:
-                logger.exception("Prometheus detector check failed")
+            with self._app.app_context():
+                try:
+                    self._check_triggers()
+                except Exception:
+                    logger.exception("Prometheus detector check failed")
+                finally:
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    try:
+                        db.session.remove()
+                    except Exception:
+                        pass
             self._stop.wait(self._interval)
 
     def _check_triggers(self):
@@ -126,6 +136,11 @@ class PrometheusIncidentDetector:
             ).first()
             return existing
         except Exception:
+            from extensions import db
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             logger.exception("Error finding incident for %s", trigger_key)
             return None
 
@@ -168,6 +183,11 @@ class PrometheusIncidentDetector:
                 incident.incident_id, trigger_key, reason,
             )
         except Exception:
+            from extensions import db
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             logger.exception("Failed to auto-resolve incident for %s", trigger_key)
 
     def _create_incident(self, trigger_key, title, description, severity):
@@ -206,4 +226,9 @@ class PrometheusIncidentDetector:
                 incident.incident_id, severity, title,
             )
         except Exception:
+            from extensions import db
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             logger.exception("Failed to create incident for %s", trigger_key)

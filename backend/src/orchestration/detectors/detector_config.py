@@ -63,6 +63,7 @@ class DetectorConfigManager:
                 }
             logger.info("Loaded %d detector trigger configs", len(self._config))
         except Exception:
+            db.session.rollback()
             logger.exception("Failed to load detector config, using defaults")
             self._config = {}
             for key, cfg in DEFAULT_TRIGGERS.items():
