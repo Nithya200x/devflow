@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiLayout, FiBox, FiGitBranch, FiGithub, FiServer, FiAlertTriangle,
-  FiActivity, FiCpu, FiBarChart2, FiSettings, FiShield, FiLogOut,
+  FiActivity, FiCpu, FiBarChart2, FiShield, FiLogOut,
   FiLayers, FiTerminal, FiMonitor
 } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
@@ -34,12 +34,7 @@ const NAV_SECTIONS = [
       { path: '/monitoring/live', label: 'Live Dashboard', icon: FiMonitor },
     ],
   },
-  {
-    label: 'System',
-    items: [
-      { path: '/settings', label: 'Settings', icon: FiSettings },
-    ],
-  },
+
 ];
 
 export function Sidebar() {
@@ -87,7 +82,7 @@ export function Sidebar() {
             <span className="user-name">{user?.username || 'User'}</span>
             <span className="user-role">
               <FiShield size={10} style={{ display: 'inline', marginRight: 3, verticalAlign: 'middle' }} />
-              {user?.role || 'admin'}
+              {user?.role || 'developer'}
             </span>
           </div>
           <button className="logout-btn" onClick={handleLogout} title="Logout">

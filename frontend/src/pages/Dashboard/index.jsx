@@ -2,13 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiBox, FiServer, FiAlertTriangle, FiCpu, FiGithub, FiActivity,
-  FiGitBranch, FiBarChart2, FiShield, FiTerminal, FiLayers, FiDollarSign
+  FiGitBranch, FiBarChart2, FiShield, FiTerminal, FiLayers
 } from 'react-icons/fi';
+import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
-import * as clusterService from '../../services/clusterService';
 import * as githubService from '../../services/githubService';
 import * as projectService from '../../services/projectService';
+import * as kubernetesService from '../../services/kubernetesService';
+import * as dockerService from '../../services/dockerService';
+import * as prometheusService from '../../services/prometheusService';
+import * as grafanaService from '../../services/grafanaService';
 import * as orchestrationService from '../../services/orchestrationService';
 
 const HEALTH_SERVICES = [
@@ -22,7 +26,7 @@ const HEALTH_SERVICES = [
 ];
 
 function HealthStatus({ name, icon: Icon, status }) {
-  const dotClass = status === 'online' || status === 'healthy' || status === 'running' || status === 'active' || status === 'streaming' || status === 'connected'
+  const dotClass = status === 'healthy' || status === 'connected'
     ? 'online' : status === 'degraded' || status === 'warning' ? 'warning' : 'offline';
   const label = typeof status === 'string' ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
   return (
@@ -37,32 +41,53 @@ function HealthStatus({ name, icon: Icon, status }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [clusters, setClusters] = useState([]);
+  const { user } = useAuth();
   const [projects, setProjects] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [ghStatus, setGhStatus] = useState(null);
+  const [serviceHealth, setServiceHealth] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [now] = useState(new Date());
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const username = user?.name || user?.username || 'User';
 
   const fetchAll = useCallback(async () => {
     try {
-      const [cData, pData, incData, gh, analysisData] = await Promise.all([
-        clusterService.getClusters().catch(() => []),
+      const [
+        pData, incData, gh, analysisData,
+        ghHealth, dockerHealth, k8sHealth,
+        promHealth, grafanaHealth,
+      ] = await Promise.all([
         projectService.getProjects().catch(() => []),
         orchestrationService.getIncidents().catch(() => []),
         githubService.getGitHubDashboard().catch(() => null),
         orchestrationService.listDbAnalyses().catch(() => ({ analyses: [] })),
+        githubService.getGitHubStatus().catch(() => null),
+        dockerService.getDockerHealth().catch(() => null),
+        kubernetesService.getKubernetesHealth().catch(() => null),
+        prometheusService.getPrometheusHealth().catch(() => null),
+        grafanaService.getGrafanaHealth().catch(() => null),
       ]);
-      setClusters(Array.isArray(cData) ? cData : []);
+
       setProjects(Array.isArray(pData) ? pData : []);
       setIncidents(Array.isArray(incData) ? incData : []);
       setGhStatus(gh);
       setAnalyses(analysisData?.analyses || []);
+
+      setServiceHealth({
+        github: ghHealth?.connected ? 'healthy' : 'offline',
+        docker: dockerHealth?.status === 'healthy' ? 'healthy' : dockerHealth?.containers > 0 ? 'degraded' : 'offline',
+        jenkins: 'not_configured',
+        kubernetes: k8sHealth?.connected ? 'healthy' : 'offline',
+        prometheus: promHealth?.connected ? 'healthy' : 'offline',
+        grafana: grafanaHealth?.connected ? 'healthy' : 'offline',
+        groq: 'not_configured',
+      });
+
       setError(null);
     } catch (err) {
       setError(err);
@@ -76,35 +101,24 @@ export default function Dashboard() {
   if (loading) return <LoadingSpinner />;
   if (error) return <NetworkError error={error} onRetry={fetchAll} />;
 
-  const totalPods = clusters.reduce((sum, c) => sum + (c.pod_count || 0), 0);
   const openIncidents = incidents.filter(i => i.status === 'open' || i.status === 'investigating').length;
   const connectedRepos = ghStatus?.connected_repos || projects.length;
   const aiFixes = analyses.length;
 
-  const systemHealth = {
-    github: ghStatus?.connected ? 'online' : 'offline',
-    docker: totalPods > 0 ? 'healthy' : 'degraded',
-    jenkins: 'running',
-    kubernetes: clusters.length > 0 ? 'healthy' : 'degraded',
-    prometheus: 'streaming',
-    grafana: 'connected',
-    groq: aiFixes > 0 ? 'active' : 'online',
-  };
+  const healthyCount = Object.values(serviceHealth).filter(s => s === 'healthy' || s === 'connected').length;
 
   const recentIncidents = incidents.slice(0, 5);
   const recentAnalyses = analyses.slice(0, 3);
 
   return (
     <div>
-      {/* Welcome */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">{greeting}, Admin</h1>
+          <h1 className="page-title">{greeting}, {username}</h1>
           <p className="page-subtitle">DevFlow Command Center · Platform Status Overview</p>
         </div>
       </div>
 
-      {/* Stat Cards */}
       <div className="stat-grid stagger-children">
         <div className="glass-panel stat-card card-hover" onClick={() => navigate('/github/repos')}>
           <div className="stat-icon-wrap blue"><FiGitBranch size={22} /></div>
@@ -118,8 +132,8 @@ export default function Dashboard() {
           <div className="stat-icon-wrap green"><FiServer size={22} /></div>
           <div className="stat-body">
             <h3>Healthy Services</h3>
-            <p>{Object.values(systemHealth).filter(s => s !== 'offline' && s !== 'degraded').length}/7</p>
-            <div className="stat-trend up"><FiActivity size={12} /> All systems nominal</div>
+            <p>{healthyCount}/7</p>
+            <div className="stat-trend up"><FiActivity size={12} /> Live health check</div>
           </div>
         </div>
         <div className="glass-panel stat-card card-hover" onClick={() => navigate('/orchestration/incidents')}>
@@ -142,19 +156,17 @@ export default function Dashboard() {
       </div>
 
       <div className="grid-2-cols" style={{ marginBottom: '1.25rem' }}>
-        {/* System Health Matrix */}
         <div className="glass-panel">
           <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiShield /> System Health Matrix
           </h3>
           <div className="health-matrix">
             {HEALTH_SERVICES.map(svc => (
-              <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={systemHealth[svc.key]} />
+              <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={serviceHealth[svc.key] || 'unknown'} />
             ))}
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div className="glass-panel">
           <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiActivity /> Recent Activity
@@ -209,7 +221,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Connected Projects */}
       {projects.length > 0 && (
         <div className="glass-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

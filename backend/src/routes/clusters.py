@@ -13,5 +13,5 @@ def get_clusters():
 @clusters_bp.route('/<int:cluster_id>/logs', methods=['GET'])
 @jwt_required()
 def get_cluster_logs(cluster_id):
-    logs = ClusterService.get_logs(cluster_id)
-    return jsonify({"logs": logs}), 200
+    result = ClusterService.get_logs(cluster_id)
+    return jsonify(result), 200

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiCpu, FiAlertTriangle, FiLayers, FiRefreshCw, FiCheckCircle, FiXCircle, FiBarChart2, FiTag, FiTarget, FiTool, FiTrendingUp, FiShield, FiClock, FiUser, FiList, FiEye } from 'react-icons/fi';
+import { FiSearch, FiCpu, FiAlertTriangle, FiLayers, FiRefreshCw, FiBarChart2, FiTarget, FiTool, FiTrendingUp, FiShield, FiClock, FiUser, FiList, FiEye } from 'react-icons/fi';
 import * as orchestrationService from '../../services/orchestrationService';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
@@ -63,9 +63,10 @@ function IncidentAnalysisView({ incidentId, onBack }) {
     try {
       setAnalyzing(true);
       await orchestrationService.triggerAnalysis(incidentId);
-      setTimeout(() => { fetchAnalysis(); setAnalyzing(false); }, 3000);
+      await fetchAnalysis();
     } catch (err) {
       setError(err);
+    } finally {
       setAnalyzing(false);
     }
   };
@@ -221,6 +222,7 @@ function IncidentAnalysisView({ incidentId, onBack }) {
 }
 
 function AnalysisCard({ analysis }) {
+  const navigate = useNavigate();
   const severityClass = analysis.severity === 'critical' ? 'danger' : analysis.severity === 'high' ? 'warning' : 'neutral';
   const pct = Math.round(analysis.confidence_score * 100);
   const confColor = analysis.confidence_score > 0.7 ? 'var(--success-color)' : analysis.confidence_score > 0.4 ? 'var(--warning-color)' : 'var(--danger-color)';
@@ -229,7 +231,7 @@ function AnalysisCard({ analysis }) {
     <div
       className="glass-panel"
       style={{ cursor: 'pointer' }}
-      onClick={() => window.location.href = `/orchestration/incidents/${analysis.incident_id}`}
+      onClick={() => navigate(`/orchestration/incidents/${analysis.incident_id}`)}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
         <div>
@@ -273,7 +275,6 @@ function AnalysisCard({ analysis }) {
 }
 
 export default function RootCauseAnalysis() {
-  const navigate = useNavigate();
   const [analyses, setAnalyses] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -304,8 +305,9 @@ export default function RootCauseAnalysis() {
     try {
       setTriggering(incidentId);
       await orchestrationService.triggerAnalysis(incidentId);
-      setTimeout(fetchData, 2000);
-    } catch {
+      await fetchData();
+    } catch (e) {
+      console.error('Analysis trigger failed:', e);
     } finally {
       setTriggering(null);
     }
