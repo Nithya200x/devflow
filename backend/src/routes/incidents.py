@@ -40,7 +40,15 @@ def handle_incidents():
                     analysis = AIAnalysisStore.query.get(i.ai_analysis_id)
                     if analysis:
                         item["ai_summary"] = analysis.summary or ""
+                        item["root_cause"] = analysis.root_cause or ""
+                        item["confidence_score"] = analysis.confidence or 0.0
                         item["suggested_fixes"] = json.loads(analysis.suggested_fixes_json) if analysis.suggested_fixes_json else []
+                        item["possible_causes"] = json.loads(analysis.possible_causes_json) if analysis.possible_causes_json else []
+                        item["preventive_actions"] = json.loads(analysis.preventive_actions_json) if analysis.preventive_actions_json else []
+                        item["risk_assessment"] = analysis.risk_assessment or ""
+                        item["estimated_resolution_time"] = analysis.estimated_resolution_time or ""
+                        item["requires_human"] = analysis.requires_human or False
+                        item["affected_components"] = json.loads(analysis.affected_components_json) if analysis.affected_components_json else []
                 except Exception:
                     pass
             result.append(item)

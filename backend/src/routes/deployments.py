@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.deployment_service import DeploymentService, DeploymentServiceError
@@ -75,6 +76,29 @@ def rollback_deployment(deployment_id):
         return jsonify(result), 201
     except DeploymentServiceError as e:
         return jsonify({"msg": str(e)}), 502
+
+
+@deployments_bp.route('/<int:deployment_id>/logs', methods=['GET'])
+@jwt_required()
+def get_deployment_logs(deployment_id):
+    current_username = get_jwt_identity()
+    try:
+        dep = DeploymentService.get_by_id(deployment_id)
+        project = ConnectedProject.query.filter_by(id=dep["project_id"], connected_by=current_username).first()
+        if not project:
+            return jsonify({"msg": "Deployment not found for this user"}), 404
+
+        logs = json.loads(dep.get("logs_json", "{}")) if isinstance(dep.get("logs_json"), str) else dep.get("logs_json", {})
+        log_entries = []
+        for key, value in logs.items():
+            log_entries.append({
+                "stage": key,
+                "message": value if isinstance(value, str) else json.dumps(value, default=str),
+                "timestamp": dep.get("started_at", ""),
+            })
+        return jsonify({"logs": log_entries, "deployment_id": deployment_id}), 200
+    except DeploymentServiceError as e:
+        return jsonify({"msg": str(e)}), 404
 
 
 @deployments_bp.route('/<int:deployment_id>/rollout-status', methods=['GET'])

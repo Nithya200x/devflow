@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiServer, FiBox, FiActivity, FiList } from 'react-icons/fi';
+import { FiServer, FiBox, FiActivity, FiList, FiGrid, FiLayers, FiDatabase, FiMonitor } from 'react-icons/fi';
 import * as k8sService from '../../services/kubernetesService';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
@@ -271,6 +271,62 @@ export default function Clusters() {
           <p className="page-subtitle">Real-time cluster monitoring from the Kubernetes API.</p>
         </div>
       </div>
+
+      {health?.connected && (
+        <div className="glass-panel" style={{ marginBottom: '1.5rem', padding: '1.25rem', overflow: 'hidden' }}>
+          <h3 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiGrid size={14} /> Cluster Topology
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+              <FiMonitor size={16} style={{ color: '#3b82f6' }} />
+              <span style={{ fontWeight: 600 }}>Cluster</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>({health.nodes_ready || 0} nodes)</span>
+            </div>
+            <div style={{ marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {[...new Set(pods.map(p => p.namespace).filter(Boolean))].slice(0, 6).map(ns => {
+                const nsPods = pods.filter(p => p.namespace === ns);
+                const nsDeployments = deployments.filter(d => d.namespace === ns);
+                const nsServices = services.filter(s => s.namespace === ns);
+                return (
+                  <div key={ns} style={{ padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                      <FiLayers size={14} style={{ color: '#8b5cf6' }} />
+                      <span style={{ fontWeight: 600 }}>{ns}</span>
+                      <span className="badge neutral" style={{ fontSize: '0.65rem' }}>{nsPods.length} pods</span>
+                      {nsDeployments.length > 0 && <span className="badge neutral" style={{ fontSize: '0.65rem' }}>{nsDeployments.length} deployments</span>}
+                      {nsServices.length > 0 && <span className="badge neutral" style={{ fontSize: '0.65rem' }}>{nsServices.length} services</span>}
+                    </div>
+                    <div style={{ marginLeft: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                      {nsDeployments.slice(0, 4).map(dep => (
+                        <div key={dep.name} style={{ padding: '0.25rem 0.5rem', background: 'rgba(59,130,246,0.1)', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <FiBox size={10} style={{ color: '#3b82f6' }} />
+                          {dep.name}
+                        </div>
+                      ))}
+                      {nsDeployments.length > 4 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>+{nsDeployments.length - 4} more</span>}
+                    </div>
+                    <div style={{ marginLeft: '1.5rem', marginTop: '0.3rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                      {nsPods.slice(0, 6).map(pod => (
+                        <div key={pod.name} style={{ padding: '0.2rem 0.4rem', background: 'rgba(34,197,94,0.08)', borderRadius: '4px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <FiServer size={9} style={{ color: pod.status === 'Running' ? '#22c55e' : '#ef4444' }} />
+                          {pod.name?.length > 20 ? pod.name.substring(0, 20) + '...' : pod.name}
+                        </div>
+                      ))}
+                      {nsPods.length > 6 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>+{nsPods.length - 6} more</span>}
+                    </div>
+                  </div>
+                );
+              })}
+              {[...new Set(pods.map(p => p.namespace).filter(Boolean))].length > 6 && (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'center', padding: '0.25rem' }}>
+                  +{[...new Set(pods.map(p => p.namespace).filter(Boolean))].length - 6} more namespaces
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid-cards stagger-children">
         <HealthCard health={health} />

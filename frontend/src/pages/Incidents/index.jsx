@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   FiCheckCircle, FiChevronDown, FiChevronRight,
   FiActivity, FiClock, FiAlertTriangle, FiCpu,
+  FiCopy, FiBarChart2, FiShield, FiAlertOctagon,
 } from 'react-icons/fi';
 import * as incidentService from '../../services/incidentService';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
@@ -166,49 +167,134 @@ export default function Incidents() {
             </div>
             {isOpen && (
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '1rem 1rem 1rem 2.75rem' }}>
-                {row.description && (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</div>
-                    <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{row.description}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    {row.description && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</div>
+                        <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{row.description}</div>
+                      </div>
+                    )}
+                    {row.resolution_reason && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                          <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                          Resolution
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--success-color)' }}>{row.resolution_reason}</div>
+                      </div>
+                    )}
+                    <Timeline events={row.timeline} />
                   </div>
-                )}
-                {row.resolution_reason && (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                      <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
-                      Resolution
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--success-color)' }}>{row.resolution_reason}</div>
+
+                  <div>
+                    {row.ai_summary && (
+                      <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(168,85,247,0.05)' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <FiCpu size={14} style={{ color: '#a855f7' }} />
+                          AI Recommendation
+                        </div>
+
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Root Cause</div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>{row.root_cause || row.ai_summary}</div>
+                        </div>
+
+                        {row.confidence_score !== undefined && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Confidence Score</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <FiBarChart2 size={12} style={{ color: row.confidence_score > 0.7 ? '#22c55e' : row.confidence_score > 0.4 ? '#f59e0b' : '#ef4444' }} />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                                {Math.round((row.confidence_score || 0) * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {row.estimated_resolution_time && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Estimated Resolution Time</div>
+                            <div style={{ fontSize: '0.82rem' }}>{row.estimated_resolution_time}</div>
+                          </div>
+                        )}
+
+                        {row.risk_assessment && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Risk Assessment</div>
+                            <div style={{ fontSize: '0.82rem' }}>{row.risk_assessment}</div>
+                          </div>
+                        )}
+
+                        {row.affected_components && row.affected_components.length > 0 && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Affected Components</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.2rem' }}>
+                              {row.affected_components.map((c, i) => (
+                                <span key={i} className="badge danger" style={{ fontSize: '0.65rem' }}>{c}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {row.suggested_fixes && row.suggested_fixes.length > 0 && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                              <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                              Recommended Fixes
+                            </div>
+                            {row.suggested_fixes.map((fix, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem', background: 'rgba(255,255,255,0.03)', padding: '0.3rem 0.5rem', borderRadius: '4px' }}>
+                                <span style={{ flex: 1, fontSize: '0.8rem' }}>{fix}</span>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '0.2rem', minWidth: 'auto' }}
+                                  onClick={() => navigator.clipboard.writeText(fix)}
+                                  title="Copy command"
+                                >
+                                  <FiCopy size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {row.possible_causes && row.possible_causes.length > 0 && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                              <FiAlertOctagon size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                              Possible Causes
+                            </div>
+                            <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem' }}>
+                              {row.possible_causes.map((c, i) => (
+                                <li key={i} style={{ marginBottom: '0.15rem' }}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {row.preventive_actions && row.preventive_actions.length > 0 && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                              <FiShield size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
+                              Preventive Actions
+                            </div>
+                            <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem' }}>
+                              {row.preventive_actions.map((a, i) => (
+                                <li key={i} style={{ marginBottom: '0.15rem' }}>{a}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!row.ai_summary && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                        AI analysis pending...
+                      </div>
+                    )}
                   </div>
-                )}
-                {row.ai_summary && (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                      <FiCpu size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
-                      AI Summary
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{row.ai_summary}</div>
-                  </div>
-                )}
-                {row.suggested_fixes && row.suggested_fixes.length > 0 && (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                      <FiCheckCircle size={11} style={{ marginRight: '0.3rem', display: 'inline' }} />
-                      Suggested Fixes
-                    </div>
-                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                      {row.suggested_fixes.map((fix, i) => (
-                        <li key={i} style={{ marginBottom: '0.2rem' }}>{fix}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <Timeline events={row.timeline} />
-                {!row.description && !row.ai_summary && (!row.suggested_fixes || row.suggested_fixes.length === 0) && (
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    AI analysis pending...
-                  </div>
-                )}
+                </div>
               </div>
             )}
           </div>

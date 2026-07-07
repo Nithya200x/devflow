@@ -1,0 +1,123 @@
+groups:
+  - name: devflow
+    interval: 15s
+    rules:
+      - alert: DevFlowHighCPU
+        expr: rate(devflow_http_request_duration_seconds_sum[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request processing load on DevFlow backend"
+          description: "Request processing rate is {{ $value }}. Consider scaling the backend."
+
+      - alert: DevFlowHighMemory
+        expr: process_resident_memory_bytes{job="devflow-backend"} > 100 * 1024 * 1024
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DevFlow backend memory usage is high"
+          description: "Memory usage is {{ $value | humanize1024 }}. Consider increasing memory limits."
+
+      - alert: DevFlowHighErrorRate
+        expr: rate(devflow_http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on DevFlow API"
+          description: "Error rate is {{ $value }} req/s (5xx responses). Investigate backend logs."
+
+      - alert: DevFlowServiceDown
+        expr: up{job="devflow-backend"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DevFlow backend is down"
+          description: "The DevFlow backend at {{ $labels.instance }} is unreachable."
+
+      - alert: DevFlowHTTPLatencyHigh
+        expr: histogram_quantile(0.95, rate(devflow_http_request_duration_seconds_bucket[5m])) > 2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP latency on DevFlow backend"
+          description: "P95 latency is {{ $value }}s. Check database and API performance."
+
+      - alert: DevFlowHighRequestRate
+        expr: rate(devflow_http_requests_total[1m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate to DevFlow backend"
+          description: "Request rate is {{ $value }} req/s. Consider scaling up."
+
+      - alert: PrometheusTargetMissing
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: "Target {{ $labels.instance }} (job: {{ $labels.job }}) has been unreachable for 30s."
+
+      - alert: PrometheusDiskSpace
+        expr: rate(prometheus_tsdb_size_retentions_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus may be running out of disk space"
+          description: "TSDB retention is being triggered. Check disk usage."
+
+  - name: devflow_kubernetes
+    interval: 15s
+    rules:
+      - alert: DevFlowPodCrashLoopBackOff
+        expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff",namespace="devflow"} > 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} in CrashLoopBackOff"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is in CrashLoopBackOff state."
+
+      - alert: DevFlowDeploymentFailure
+        expr: kube_deployment_status_replicas_unavailable{namespace="devflow"} > 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Deployment replicas unavailable"
+          description: "Deployment {{ $labels.deployment }} has {{ $value }} unavailable replicas."
+
+      - alert: DevFlowNodeDown
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kubernetes node {{ $labels.node }} is down"
+          description: "Node {{ $labels.node }} has been unreachable for 1m."
+
+      - alert: DevFlowPodRestarting
+        expr: rate(kube_pod_container_status_restarts_total{namespace="devflow"}[15m]) > 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod {{ $labels.pod }} restarting frequently"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15m."
+
+      - alert: DevFlowDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node {{ $labels.node }} has disk pressure"
+          description: "Node {{ $labels.node }} is experiencing disk pressure."

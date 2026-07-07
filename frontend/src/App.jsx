@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './components/Notifications/ToastContainer';
 import { AppLayout } from './layouts/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -28,11 +29,16 @@ import GrafanaDashboards from './pages/Monitoring/Dashboards';
 import ActiveAlerts from './pages/Monitoring/Alerts';
 import GrafanaLiveDashboard from './pages/Monitoring/Live';
 import RepositoryCommandCenter from './pages/RepositoryCommandCenter';
+import Architecture from './pages/Architecture';
+import ActivityTimeline from './pages/ActivityTimeline';
+import AnalyticsDashboard from './pages/Analytics';
+import Diagnostics from './pages/Diagnostics';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ToastProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
@@ -60,9 +66,14 @@ function App() {
           <Route path="/github/repos/:repoId/branches" element={<AppLayout><Branches /></AppLayout>} />
           <Route path="/github/repos/:repoId/deployments" element={<AppLayout><RepositoryDeployments /></AppLayout>} />
           <Route path="/github/repos/:repoId/settings" element={<AppLayout><RepositorySettings /></AppLayout>} />
+          <Route path="/architecture" element={<AppLayout><Architecture /></AppLayout>} />
+          <Route path="/activity" element={<AppLayout><ActivityTimeline /></AppLayout>} />
+          <Route path="/analytics" element={<AppLayout><AnalyticsDashboard /></AppLayout>} />
+          <Route path="/diagnostics" element={<AppLayout><Diagnostics /></AppLayout>} />
           <Route path="/repositories/:id" element={<AppLayout><RepositoryCommandCenter /></AppLayout>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -1904,3 +1904,69 @@ tr:hover td {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 400px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: toastSlideIn 0.3s ease;
+}
+
+.toast-success { border-left: 3px solid var(--success-color); }
+.toast-error { border-left: 3px solid var(--danger-color); }
+.toast-warning { border-left: 3px solid var(--warning-color); }
+.toast-info { border-left: 3px solid var(--accent-blue); }
+
+.toast-icon { flex-shrink: 0; display: flex; }
+.toast-success .toast-icon { color: var(--success-color); }
+.toast-error .toast-icon { color: var(--danger-color); }
+.toast-warning .toast-icon { color: var(--warning-color); }
+.toast-info .toast-icon { color: var(--accent-blue); }
+
+.toast-message { flex: 1; font-size: 0.85rem; color: var(--text-primary); }
+
+.toast-close {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  padding: 2px; display: flex; border-radius: 4px;
+}
+.toast-close:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skeleton-text { height: 14px; width: 80%; }
+.skeleton-title { height: 24px; width: 60%; }
+.skeleton-card { height: 120px; border-radius: 12px; }
+.skeleton-avatar { height: 40px; width: 40px; border-radius: 50%; }
+.skeleton-button { height: 36px; width: 100px; border-radius: 8px; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

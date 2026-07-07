@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   FiPlay, FiCheckCircle, FiXCircle, FiActivity, FiRotateCcw,
   FiClock, FiGitCommit, FiBox, FiServer, FiRefreshCw,
-  FiTerminal, FiArrowUp, FiLoader,
+  FiTerminal, FiArrowUp, FiLoader, FiFileText, FiSearch, FiDownload,
 } from 'react-icons/fi';
 import * as deploymentService from '../../services/deploymentService';
 import * as kubernetesService from '../../services/kubernetesService';
@@ -27,6 +27,11 @@ export default function DeploymentCenter() {
   const [deployBranch, setDeployBranch] = useState('main');
   const [deployCommit, setDeployCommit] = useState('');
   const [deployEnv, setDeployEnv] = useState('dev');
+  const [logViewDeployment, setLogViewDeployment] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [logLoading, setLogLoading] = useState(false);
+  const [logSearch, setLogSearch] = useState('');
+  const logRef = useRef(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -82,6 +87,36 @@ export default function DeploymentCenter() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const fetchLogs = async (deploymentId) => {
+    setLogLoading(true);
+    setLogViewDeployment(deploymentId);
+    setLogSearch('');
+    try {
+      const data = await deploymentService.getDeploymentLogs(deploymentId);
+      setLogs(data.logs || []);
+    } catch (err) {
+      setLogs([]);
+    } finally {
+      setLogLoading(false);
+    }
+    setTimeout(() => logRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
+
+  const closeLogs = () => {
+    setLogViewDeployment(null);
+    setLogs([]);
+    setLogSearch('');
+  };
+
+  const downloadLogs = () => {
+    const text = logs.map(l => `[${l.stage}] ${l.message}`).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `deployment-${logViewDeployment}-logs.txt`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
   const statusIcon = (status) => {
@@ -149,6 +184,12 @@ export default function DeploymentCenter() {
       key: 'actions', label: 'Actions',
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => fetchLogs(row.id)}
+          >
+            <FiFileText size={14} /> Logs
+          </button>
           {row.status === 'failed' && (
             <button
               className="btn btn-danger btn-sm"
@@ -320,6 +361,48 @@ export default function DeploymentCenter() {
         />
       ) : (
         <DataTable columns={columns} data={deployments} />
+      )}
+
+      {logViewDeployment && (
+        <div ref={logRef} className="glass-panel" style={{ marginTop: '1rem', padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <FiTerminal size={16} />
+            <span style={{ fontWeight: 600, fontSize: '0.9rem', flex: 1 }}>
+              Deployment Logs #{logViewDeployment}
+            </span>
+            <div style={{ position: 'relative' }}>
+              <FiSearch size={14} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+              <input
+                type="text"
+                value={logSearch}
+                onChange={e => setLogSearch(e.target.value)}
+                placeholder="Search logs..."
+                style={{ paddingLeft: '1.75rem', height: 30, fontSize: '0.8rem', width: 200 }}
+              />
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={downloadLogs} title="Download logs">
+              <FiDownload size={14} />
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={closeLogs} title="Close">
+              <FiXCircle size={14} />
+            </button>
+          </div>
+          <div className="terminal-window" style={{ border: 'none', borderRadius: 0, boxShadow: 'none', maxHeight: '400px', overflow: 'auto' }}>
+            {logLoading ? (
+              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Loading logs...</div>
+            ) : logs.length === 0 ? (
+              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No logs available for this deployment.</div>
+            ) : (
+              logs.filter(l => !logSearch || l.message.toLowerCase().includes(logSearch.toLowerCase()) || l.stage.toLowerCase().includes(logSearch.toLowerCase()))
+                .map((log, i) => (
+                  <div key={i} className={`terminal-line ${log.message.includes('error') || log.message.includes('failed') ? 'terminal-error' : log.message.includes('warn') ? 'terminal-warn' : 'terminal-info'}`}>
+                    <span style={{ color: '#64748b', marginRight: '0.5rem' }}>[{log.stage}]</span>
+                    {log.message}
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

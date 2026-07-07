@@ -24,3 +24,8 @@ export const getRolloutStatus = async (deploymentId) => {
   const res = await api.get(`/deployments/${deploymentId}/rollout-status`);
   return res.data;
 };
+
+export const getDeploymentLogs = async (deploymentId) => {
+  const res = await api.get(`/deployments/${deploymentId}/logs`);
+  return res.data;
+};

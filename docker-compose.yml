@@ -50,7 +50,7 @@ services:
       GRAFANA_API_KEY: ${GRAFANA_API_KEY:-}
       GRAFANA_USER: admin
       GRAFANA_PASSWORD: devflow
-      ALERTMANAGER_URL: ${ALERTMANAGER_URL:-}
+      ALERTMANAGER_URL: ${ALERTMANAGER_URL:-http://alertmanager:9093}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     depends_on:
       postgres:
@@ -87,6 +87,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus-alert-rules.yml:/etc/prometheus/alert-rules.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -120,11 +121,31 @@ services:
     networks:
       - devflow_net
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: devflow-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--log.level=info'
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - devflow_net
+
 volumes:
   postgres_data:
   devflow_db:
   prometheus_data:
   grafana_data:
+  alertmanager_data:
 
 networks:
   devflow_net:
