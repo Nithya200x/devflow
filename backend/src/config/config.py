@@ -71,13 +71,7 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = db_url if db_url else 'sqlite:///' + os.path.join(database_dir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
-        "pool_recycle": 120,
-        "pool_reset_on_return": "rollback",
-        "pool_size": 5,
-        "max_overflow": 10,
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_reset_on_return": "rollback"}
 
     TOKEN_ENCRYPTION_KEY = os.getenv("TOKEN_ENCRYPTION_KEY", "devflow-default-enc-key")
     GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
@@ -118,3 +112,11 @@ class Config:
     AI_MAX_CONCURRENT_REQUESTS = int(os.getenv("AI_MAX_CONCURRENT_REQUESTS", "3"))
     AI_RATE_LIMIT_BACKOFF = os.getenv("AI_RATE_LIMIT_BACKOFF", "true").lower() == "true"
     AI_ANALYSIS_CACHE = os.getenv("AI_ANALYSIS_CACHE", "true").lower() == "true"
+
+
+if not Config.SQLALCHEMY_DATABASE_URI.startswith("sqlite://"):
+    Config.SQLALCHEMY_ENGINE_OPTIONS.update({
+        "pool_recycle": 120,
+        "pool_size": 5,
+        "max_overflow": 10,
+    })

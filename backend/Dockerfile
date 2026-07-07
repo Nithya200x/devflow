@@ -8,12 +8,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && addgroup --system devflow \
+RUN addgroup --system devflow \
     && adduser --system --ingroup devflow devflow
 
-COPY . .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Initialize DB and then start the server
-CMD ["sh", "-c", "python init_db.py && gunicorn \"app:app\" --bind 0.0.0.0:${PORT:-5000} --workers 1 --access-logfile - --error-logfile -"]
+COPY --chown=devflow:devflow . .
+RUN chown devflow:devflow /app
+
+USER devflow
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
+
+LABEL org.opencontainers.image.title="DevFlow Backend" \
+      org.opencontainers.image.description="DevFlow SaaS Backend API" \
+      org.opencontainers.image.version="2.0.0"
+
+CMD ["sh", "-c", "python init_db.py && gunicorn \"app:app\" --bind 0.0.0.0:${PORT:-5000} --workers 3 --timeout 120 --access-logfile - --error-logfile -"]
