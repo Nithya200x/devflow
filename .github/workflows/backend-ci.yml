@@ -37,4 +37,4 @@ jobs:
         run: |
           python -m pytest tests/ -v --ignore=src/acceptance_test.py
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: 'sqlite:///:memory:'
