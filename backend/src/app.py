@@ -129,6 +129,21 @@ def create_app():
             logger.warning("Database schema initialization failed: %s", e)
 
         try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            if "incident" in inspector.get_table_names():
+                cols = [c["name"] for c in inspector.get_columns("incident")]
+                if "resolution_reason" not in cols:
+                    db.session.execute(
+                        db.text("ALTER TABLE incident ADD COLUMN resolution_reason VARCHAR(255) DEFAULT ''")
+                    )
+                    db.session.commit()
+                    logger.info("Applied missing column: incident.resolution_reason")
+        except Exception as e:
+            db.session.rollback()
+            logger.debug("Schema migration skipped: %s", e)
+
+        try:
             import models
             seed_data()
         except Exception as e:
