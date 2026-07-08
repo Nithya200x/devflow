@@ -21,10 +21,11 @@ const WARNING_STATUSES = ['available_locally', 'remote_environment', 'remote_una
 const ERROR_STATUSES = ['authentication_failed', 'connection_failed', 'unreachable'];
 
 export function getStatusClass(status) {
-  if (!status) return 'offline';
+  if (!status) return 'muted';
   if (HEALTHY_STATUSES.includes(status)) return 'online';
   if (WARNING_STATUSES.includes(status)) return 'warning';
-  return 'offline';
+  if (ERROR_STATUSES.includes(status) || status === 'offline') return 'offline';
+  return 'muted';
 }
 
 export function getStatusColor(status) {

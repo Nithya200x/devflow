@@ -89,11 +89,16 @@ class KubernetesService:
             env = get_environment_display()
             if not self._kubeconfig_available():
                 logger.info("Kubernetes health: no kubeconfig, environment=%s, returning NOT_CONFIGURED", env)
-                base = make_service_status(False, "Kubernetes", is_local_service=True)
+                base = make_service_status(False, "Kubernetes", status_override="not_configured")
                 base["detail"] = "Kubernetes is not configured. Configure kubeconfig or run in a cluster."
             else:
                 logger.info("Kubernetes health: kubeconfig found but connection failed, environment=%s", env)
-                base = make_service_status(False, "Kubernetes", is_local_service=is_cloud())
+                if is_cloud():
+                    base = make_service_status(False, "Kubernetes", status_override="remote_unavailable")
+                    base["detail"] = "Kubernetes cluster is running on the local development machine and cannot be accessed from this deployment."
+                else:
+                    base = make_service_status(False, "Kubernetes", is_local_service=True)
+                    base["detail"] = "Kubernetes configuration found but failed to connect. Ensure your cluster is running."
             base.update({
                 "connected": False,
                 "cluster_name": "",
@@ -139,8 +144,8 @@ class KubernetesService:
             logger.info("Kubernetes health: error='%s', environment=%s", error_str, env)
             if "refused" in error_lower or "connection refused" in error_lower:
                 if is_cloud():
-                    base = make_service_status(False, "Kubernetes", is_local_service=True, error=error_str)
-                    base["detail"] = "Kubernetes cluster is running in the local development environment. Running the backend locally enables full cluster monitoring."
+                    base = make_service_status(False, "Kubernetes", status_override="remote_unavailable")
+                    base["detail"] = "Kubernetes cluster is running in the local development environment and cannot be accessed from this deployment."
                 else:
                     base = make_service_status(False, "Kubernetes", error=error_str)
             elif "timeout" in error_lower or "timed out" in error_lower:

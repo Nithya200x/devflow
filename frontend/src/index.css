@@ -562,6 +562,13 @@ body {
   box-shadow: 0 0 10px var(--danger-glow);
 }
 
+.health-dot.muted {
+  background: #6b7280;
+  box-shadow: 0 0 6px rgba(107, 114, 128, 0.3);
+}
+
+.health-status.muted { color: #6b7280; }
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -579,6 +586,8 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .health-status.online { color: var(--success-color); }

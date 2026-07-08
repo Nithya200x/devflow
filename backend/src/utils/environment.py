@@ -145,6 +145,12 @@ def make_service_status(connected, service_name, is_local_service=False, error=N
             }
         if "refused" in err_str or "111" in err_str or "connection refused" in err_str:
             if is_local_service:
+                if running_in == "cloud":
+                    return {
+                        "status": "remote_unavailable",
+                        "detail": f"{service_name} is running on the local development machine and cannot be accessed from this deployment.",
+                        "environment": get_environment_display(),
+                    }
                 return {
                     "status": "available_locally",
                     "detail": f"{service_name} is running on the local development machine and cannot be accessed from this deployment.",
@@ -175,6 +181,12 @@ def make_service_status(connected, service_name, is_local_service=False, error=N
             }
 
     if is_local_service and running_in in ("cloud", "container"):
+        if running_in == "cloud":
+            return {
+                "status": "remote_unavailable",
+                "detail": f"{service_name} is running on the local development machine and cannot be accessed from this deployment.",
+                "environment": get_environment_display(),
+            }
         return {
             "status": "available_locally",
             "detail": f"{service_name} is running on the local development machine and cannot be accessed from this deployment.",

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import docker
 from docker.errors import DockerException, NotFound, APIError
-from utils.environment import make_service_status, get_environment_display, is_cloud, STATUS_REMOTE_UNAVAILABLE
+from utils.environment import make_service_status, get_environment_display, is_cloud
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class DockerService:
             if not docker_host:
                 if is_cloud():
                     logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning REMOTE_UNAVAILABLE", env)
-                    base = make_service_status(False, "Docker", status_override="remote_unavailable")
+                    base = make_service_status(False, "Docker", is_local_service=True)
                     base["detail"] = "Docker daemon cannot be accessed from the Render deployment."
                 else:
                     logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning NOT_CONFIGURED", env)
@@ -123,7 +123,7 @@ class DockerService:
             if ("refused" in error_lower or "connection refused" in error_lower) and is_cloud():
                 logger.info("Docker health: connection refused, environment=%s, returning REMOTE_UNAVAILABLE", env)
                 base = make_service_status(False, "Docker", is_local_service=True, error=error_str)
-                base["detail"] = "Docker Engine is running on the development machine and cannot be accessed from the cloud deployment."
+                base["detail"] = "Docker daemon cannot be accessed from the Render deployment."
             else:
                 logger.info("Docker health: error='%s', environment=%s", error_str, env)
                 base = make_service_status(False, "Docker", error=error_str)
