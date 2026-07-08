@@ -17,6 +17,8 @@ import * as grafanaService from '../../services/grafanaService';
 import * as alertmanagerService from '../../services/alertmanagerService';
 import * as diagnosticsService from '../../services/diagnosticsService';
 import * as orchestrationService from '../../services/orchestrationService';
+import { listHealthScores } from '../../services/repositoryHealthService';
+import HealthScore from '../../components/Common/HealthScore';
 
 const HEALTH_SERVICES = [
   { key: 'github', label: 'GitHub', icon: FiGithub },
@@ -38,6 +40,7 @@ export default function Dashboard() {
   const [analyses, setAnalyses] = useState([]);
   const [ghStatus, setGhStatus] = useState(null);
   const [serviceHealth, setServiceHealth] = useState({});
+  const [healthScores, setHealthScores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [now] = useState(new Date());
@@ -51,7 +54,7 @@ export default function Dashboard() {
       const [
         pData, incData, gh, analysisData,
         ghHealth, dockerHealth, k8sHealth,
-        promHealth, grafanaHealth, amHealth, diagResult,
+        promHealth, grafanaHealth, amHealth, diagResult, hsData,
       ] = await Promise.all([
         projectService.getProjects().catch(() => []),
         orchestrationService.getIncidents().catch(() => []),
@@ -64,6 +67,7 @@ export default function Dashboard() {
         grafanaService.getGrafanaHealth().catch(() => null),
         alertmanagerService.getAlertmanagerHealth().catch(() => null),
         diagnosticsService.runDiagnostics().catch(() => null),
+        listHealthScores().catch(() => ({ scores: [] })),
       ]);
       const aiResult = diagResult?.results?.find(r => r.key === 'ai');
 
@@ -71,6 +75,8 @@ export default function Dashboard() {
       setIncidents(Array.isArray(incData) ? incData : []);
       setGhStatus(gh);
       setAnalyses(analysisData?.analyses || []);
+
+      setHealthScores(Array.isArray(hsData?.scores) ? hsData.scores : []);
 
       setServiceHealth({
         github: ghHealth?.connected ? 'healthy' : 'not_configured',
@@ -162,6 +168,32 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+
+          {healthScores.length > 0 && (
+            <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
+              <div className="card-header">
+                <FiShield size={16} />
+                <h3>Repository Health Scores</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {healthScores.slice(0, 4).map(s => (
+                  <div key={s.project_id} className="card-hover"
+                    onClick={() => navigate(`/repositories/${s.project_id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)' }}>
+                    <HealthScore
+                      score={s.score} trend={s.trend} color={s.color}
+                      label={s.label} size="sm" showBreakdown={false}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="text-truncate" style={{ fontWeight: 600, fontSize: '0.85rem' }}>{s.project_name}</div>
+                      <div className="text-truncate" style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{s.full_name}</div>
+                    </div>
+                    <span className={`badge ${s.trend === 'improving' ? 'success' : s.trend === 'degrading' ? 'danger' : 'neutral'}`} style={{ fontSize: '0.6rem' }}>{s.trend}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="glass-panel card-hover" onClick={() => navigate('/monitoring/alerts')}>
             <div className="card-header" style={{ marginBottom: '0.75rem' }}>

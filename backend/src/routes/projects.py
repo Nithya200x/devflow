@@ -127,14 +127,7 @@ def disconnect_project(project_id):
     return jsonify({"msg": "Project disconnected"}), 200
 
 
-@projects_bp.route('/<int:project_id>/overview', methods=['GET'])
-@jwt_required()
-def project_overview(project_id):
-    username = get_jwt_identity()
-    project = ConnectedProject.query.filter_by(id=project_id, connected_by=username).first()
-    if not project:
-        return jsonify({"msg": "Project not found"}), 404
-
+def _build_project_overview(project, username):
     from services.github_auth import PATGitHubAuth
     from services.github_service import GitHubService
     from services.docker_service import DockerService
@@ -144,12 +137,12 @@ def project_overview(project_id):
     from services.alertmanager_service import AlertmanagerService
     from utils.encryption import decrypt_token
     from config.config import Config
+    from orchestration.models.event_store import AIAnalysisStore
 
     user = User.query.filter_by(username=username).first()
+    now = datetime.datetime.utcnow().isoformat()
     overview = {"project": {"id": project.id, "name": project.name, "full_name": project.full_name, "owner": project.github_owner, "html_url": project.html_url, "default_branch": project.default_branch, "description": project.description, "language": project.language, "visibility": project.visibility, "topics": project.topics.split(",") if project.topics else []}}
 
-    # GitHub
-    now = datetime.datetime.utcnow().isoformat()
     overview["github"] = {"connected": True, "service_status": "not_configured", "configured": bool(user and user.github_token), "last_checked": now, "error_message": None, "stars": project.stars, "forks": project.forks, "default_branch": project.default_branch, "language": project.language}
     if user and user.github_token:
         try:
@@ -193,7 +186,6 @@ def project_overview(project_id):
     else:
         overview["github"]["error_message"] = "GitHub token not configured"
 
-    # Docker
     overview["docker"] = {"connected": bool(project.docker_container), "service_status": "not_configured", "configured": bool(project.docker_container), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if project.docker_container:
         try:
@@ -229,7 +221,6 @@ def project_overview(project_id):
     else:
         overview["docker"]["running"] = False
 
-    # Kubernetes
     overview["kubernetes"] = {"connected": bool(project.kubernetes_namespace and project.kubernetes_deployment), "service_status": "not_configured", "configured": bool(project.kubernetes_namespace and project.kubernetes_deployment), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if project.kubernetes_namespace and project.kubernetes_deployment:
         try:
@@ -255,7 +246,6 @@ def project_overview(project_id):
     else:
         overview["kubernetes"]["deployment"] = project.kubernetes_deployment or ""
 
-    # Prometheus
     overview["prometheus"] = {"connected": bool(Config.PROMETHEUS_URL), "service_status": "not_configured", "configured": bool(Config.PROMETHEUS_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None, "has_kubernetes_metrics": False}
     if Config.PROMETHEUS_URL:
         try:
@@ -302,7 +292,6 @@ def project_overview(project_id):
     else:
         overview["prometheus"]["healthy"] = False
 
-    # Grafana
     overview["grafana"] = {"connected": bool(Config.GRAFANA_URL), "service_status": "not_configured", "configured": bool(Config.GRAFANA_URL), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
     if Config.GRAFANA_URL:
         try:
@@ -317,7 +306,6 @@ def project_overview(project_id):
                     "dashboard_uid": matched[0]["uid"] if matched else None,
                     "dashboard_title": matched[0]["title"] if matched else project.grafana_dashboard or "",
                     "dashboard_url": f"{Config.GRAFANA_URL}/d/{matched[0]['uid']}" if matched else None,
-                    "dashboards_count": len(dashboards or []),
                     "service_status": "connected",
                     "last_checked": datetime.datetime.utcnow().isoformat(),
                 })
@@ -329,84 +317,89 @@ def project_overview(project_id):
     else:
         overview["grafana"]["dashboard_title"] = project.grafana_dashboard or ""
 
-    # Alertmanager
     overview["alerts"] = {"active": 0, "resolved": 0}
     if Config.ALERTMANAGER_URL:
         try:
-            am = AlertmanagerService(Config.ALERTMANAGER_URL)
+            am = AlertmanagerService()
             alerts_data = am.get_alerts()
-            if isinstance(alerts_data, list):
-                active = [a for a in alerts_data if a.get("status", {}).get("state") == "active"]
-                overview["alerts"]["active"] = len(active)
-                overview["alerts"]["resolved"] = len([a for a in alerts_data if a.get("status", {}).get("state") == "resolved"])
+            active = [a for a in alerts_data if a.get("status", {}).get("state") == "active"]
+            overview["alerts"]["active"] = len(active)
+            overview["alerts"]["resolved"] = len([a for a in alerts_data if a.get("status", {}).get("state") == "resolved"])
         except Exception as e:
             logger.warning(f"Alertmanager overview error: {e}")
 
-    # Incidents (project-scoped — DB source of truth)
-    overview["incidents"] = {"active": 0, "resolved": 0, "items": []}
+    overview["incidents"] = {"active": 0, "resolved": 0, "items": [], "open_count": 0, "total_count": 0, "has_rca": False, "resolution_rate": 1.0, "mean_resolution_minutes": 0}
     try:
-        db_incidents = Incident.query.filter_by(project_id=project.id).order_by(Incident.created_at.desc()).all()
-        overview["incidents"]["active"] = len([i for i in db_incidents if i.status == "open"])
-        overview["incidents"]["resolved"] = len([i for i in db_incidents if i.status == "resolved"])
+        db_incidents = Incident.query.filter_by(project_id=project.id).all()
+        overview["incidents"]["open_count"] = len([i for i in db_incidents if i.status == "open"])
+        overview["incidents"]["total_count"] = len(db_incidents)
         overview["incidents"]["items"] = [
-            {
-                "incident_id": i.incident_id,
-                "summary": i.title,
-                "severity": i.severity,
-                "status": i.status,
-                "created_at": to_iso(i.created_at),
-            }
-            for i in db_incidents[:10]
+            {"id": i.incident_id, "title": i.title, "severity": i.severity, "status": i.status, "created_at": to_iso(i.created_at) if i.created_at else None}
+            for i in sorted(db_incidents, key=lambda x: x.created_at or datetime.datetime.min, reverse=True)[:10]
         ]
+        resolved_inc = [i for i in db_incidents if i.status == "resolved"]
+        if resolved_inc and len(db_incidents) > 0:
+            overview["incidents"]["resolution_rate"] = len(resolved_inc) / len(db_incidents)
+        resolved_times = []
+        for i in resolved_inc:
+            if i.resolved_at and i.created_at:
+                diff = (i.resolved_at - i.created_at).total_seconds() / 60
+                resolved_times.append(diff)
+        if resolved_times:
+            overview["incidents"]["mean_resolution_minutes"] = sum(resolved_times) / len(resolved_times)
+
+        from orchestration.models.event_store import AIAnalysisStore
+        rca_count = AIAnalysisStore.query.filter_by(project_id=project.id).count()
+        overview["incidents"]["has_rca"] = rca_count > 0
     except Exception as e:
         logger.warning(f"Incidents overview error: {e}")
 
-    # AI Analysis (scoped to this project's incidents)
     overview["ai_analysis"] = {"latest": None}
     try:
-        from orchestration.models.event_store import AIAnalysisStore
-        analysis = AIAnalysisStore.query.filter(
-            AIAnalysisStore.project_id == project.id
-        ).order_by(AIAnalysisStore.analyzed_at.desc()).first()
-        if analysis:
+        latest_analysis = AIAnalysisStore.query.filter_by(project_id=project.id).order_by(AIAnalysisStore.analyzed_at.desc()).first()
+        if latest_analysis:
             overview["ai_analysis"]["latest"] = {
-                "incident_id": analysis.incident_id,
-                "root_cause": analysis.root_cause or "",
-                "confidence": analysis.confidence or 0,
-                "summary": analysis.summary or "",
-                "severity": analysis.severity or "",
-                "suggested_fixes": json.loads(analysis.suggested_fixes_json) if analysis.suggested_fixes_json else [],
-                "provider": analysis.provider or "",
-                "model": analysis.model or "",
-                "analyzed_at": to_iso(analysis.analyzed_at),
+                "incident_id": latest_analysis.incident_id,
+                "root_cause": latest_analysis.root_cause or "",
+                "confidence": latest_analysis.confidence or 0,
+                "analyzed_at": to_iso(latest_analysis.analyzed_at) if latest_analysis.analyzed_at else None,
+                "summary": latest_analysis.summary or "",
             }
     except Exception as e:
         logger.warning(f"AI analysis overview error: {e}")
 
-    # Health calculation
     health = "healthy"
     issues = []
-    if overview["incidents"]["active"] > 0:
+    if overview["incidents"]["open_count"] > 0:
         health = "warning"
-        issues.append(f"{overview['incidents']['active']} active incident(s)")
+        issues.append(f"{overview['incidents']['open_count']} active incident(s)")
     has_critical = any(i.get("severity") == "critical" for i in overview["incidents"]["items"])
     if has_critical:
         health = "critical"
-        issues.append("Critical incident detected")
-    if overview.get("docker", {}).get("container_status") == "running":
-        pass
-    elif project.docker_container and not overview["docker"].get("running"):
-        if health == "healthy":
-            health = "warning"
-        issues.append("Docker container not running")
+        issues.append("critical incident(s) present")
+    if project.docker_container and not overview["docker"].get("running"):
+        health = "warning"
+        issues.append("docker container not running")
     if overview.get("kubernetes", {}).get("total_pods", 0) > 0:
         ready = overview["kubernetes"].get("ready_pods", 0)
         total = overview["kubernetes"].get("total_pods", 0)
         if ready < total:
-            health = "warning"
+            health = "warning" if health != "critical" else health
             issues.append(f"{total - ready} pod(s) not ready")
     overview["health"] = {"status": health, "issues": issues}
 
+    return overview
+
+
+@projects_bp.route('/<int:project_id>/overview', methods=['GET'])
+@jwt_required()
+def project_overview(project_id):
+    username = get_jwt_identity()
+    project = ConnectedProject.query.filter_by(id=project_id, connected_by=username).first()
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
+
+    overview = _build_project_overview(project, username)
     return jsonify(overview), 200
 
 

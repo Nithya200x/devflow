@@ -25,6 +25,7 @@ from routes.alertmanager import alertmanager_bp
 from routes.pipelines import pipelines_bp
 from routes.analytics import analytics_bp
 from routes.diagnostics import diagnostics_bp
+from routes.repository_health import repository_health_bp
 from routes.health import register_health_routes
 from utils.logging import setup_logging
 from utils.metrics import register_metrics
@@ -129,6 +130,7 @@ def create_app(testing=False):
     app.register_blueprint(pipelines_bp, url_prefix='/api/v1/pipelines')
     app.register_blueprint(analytics_bp, url_prefix='/api/v1/analytics')
     app.register_blueprint(diagnostics_bp, url_prefix='/api/v1/diagnostics')
+    app.register_blueprint(repository_health_bp, url_prefix='/api/v1')
 
     _init_orchestration(app)
 

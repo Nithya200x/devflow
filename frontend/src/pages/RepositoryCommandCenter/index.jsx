@@ -9,31 +9,11 @@ import {
 import * as projectService from '../../services/projectService';
 import { getMetricsSummary } from '../../services/metricsService';
 import * as pipelineService from '../../services/pipelineService';
+import { getHealthScore } from '../../services/repositoryHealthService';
 import { NetworkError } from '../../components/Common/NetworkError';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
-
-function ScoreRing({ value, label, sublabel, color = '#8b5cf6' }) {
-  const r = 42;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (value / 100) * circ;
-  return (
-    <div className="score-ring" style={{ width: 140, height: 140 }}>
-      <svg width="140" height="140" viewBox="0 0 100 100">
-        <circle className="score-bg" cx="50" cy="50" r={r} />
-        <circle className="score-fill" cx="50" cy="50" r={r}
-          stroke={color}
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <div className="score-label">
-        <div className="score-value" style={{ color }}>{value}%</div>
-        <div className="score-text">{sublabel || label}</div>
-      </div>
-    </div>
-  );
-}
+import HealthScore from '../../components/Common/HealthScore';
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -787,7 +767,7 @@ function AiRcaTab({ overview }) {
     <div className="page-enter">
       <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <ScoreRing value={pct} label="Confidence" sublabel="Confidence" color={pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444'} />
+          <HealthScore score={pct} label={pct > 70 ? 'High' : pct > 40 ? 'Medium' : 'Low'} color={pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444'} size="sm" showBreakdown={false} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{meta.root_cause}</div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
@@ -869,30 +849,7 @@ function AiRcaTab({ overview }) {
   );
 }
 
-function calcHealthScore(overview) {
-  let score = 0;
-  const gh = overview.github || {};
-  if (gh.connected && !gh.error) score += 40;
-  const docker = overview.docker || {};
-  if (docker.connected && docker.running) score += 15;
-  const k8s = overview.kubernetes || {};
-  if (k8s.connected && k8s.deployment) score += 15;
-  if (k8s.total_pods > 0 && k8s.ready_pods === k8s.total_pods) score += 5;
-  const prom = overview.prometheus || {};
-  if (prom.healthy) score += 5;
-  const graf = overview.grafana || {};
-  if (graf.dashboard_uid) score += 5;
-  const health = overview.health || {};
-  if (health.status !== 'critical') score += 0;
-  if (health.status === 'warning') score -= 10;
-  return Math.min(100, score);
-}
 
-function calcHealthColor(score) {
-  if (score >= 60) return '#10b981';
-  if (score >= 30) return '#f59e0b';
-  return '#ef4444';
-}
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: FiActivity },
@@ -938,6 +895,7 @@ export default function RepositoryCommandCenter() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
+  const [healthScore, setHealthScore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -959,25 +917,39 @@ export default function RepositoryCommandCenter() {
     }
   }, [id]);
 
+  const fetchHealthScore = useCallback(async () => {
+    try {
+      const hs = await getHealthScore(id);
+      setHealthScore(hs);
+    } catch {
+      // health score is non-critical
+    }
+  }, [id]);
+
   const fetchWithLoading = useCallback(async () => {
     try {
       setLoading(true);
-      await fetchData();
+      const [ov] = await Promise.all([
+        projectService.getProjectOverview(id),
+        fetchHealthScore(),
+      ]);
+      setOverview(ov);
     } finally {
       setLoading(false);
     }
-  }, [fetchData]);
+  }, [id, fetchHealthScore]);
 
   useEffect(() => { fetchWithLoading(); }, [fetchWithLoading]);
 
   useEffect(() => {
     pollingRef.current = setInterval(() => {
       fetchData();
+      fetchHealthScore();
     }, 30000);
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [fetchData]);
+  }, [fetchData, fetchHealthScore]);
 
   if (loading) return <LoadingState phase={0} />;
   if (error) return <NetworkError error={error} onRetry={fetchWithLoading} />;
@@ -1003,8 +975,7 @@ export default function RepositoryCommandCenter() {
 
   const p = overview.project;
   const gh = overview.github || {};
-  const healthScore = calcHealthScore(overview);
-  const healthColor = calcHealthColor(healthScore);
+  const hs = healthScore || {};
 
   return (
     <div className="page-enter">
@@ -1043,7 +1014,16 @@ export default function RepositoryCommandCenter() {
             </div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <ScoreRing value={healthScore} label="DevFlow Score" sublabel="Operational" color={healthColor} />
+            <HealthScore
+              score={hs.score ?? 0}
+              trend={hs.trend ?? 'stable'}
+              color={hs.color ?? '#6b7280'}
+              label={hs.label ?? 'Unknown'}
+              breakdown={hs.breakdown}
+              weights={hs.weights}
+              calculatedAt={hs.calculated_at}
+              onRefresh={fetchHealthScore}
+            />
           </div>
         </div>
 

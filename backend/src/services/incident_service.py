@@ -11,11 +11,11 @@ class IncidentService:
         return Incident.query.order_by(Incident.created_at.desc()).all()
 
     @staticmethod
-    def create(title, severity):
-        i = Incident(title=title, severity=severity)
+    def create(title, severity, project_id=None):
+        i = Incident(title=title, severity=severity, project_id=project_id)
         db.session.add(i)
         db.session.commit()
-        logger.info(f"Incident created: title={title}, severity={severity}")
+        logger.info(f"Incident created: title={title}, severity={severity}, project_id={project_id}")
         return i
 
     @staticmethod

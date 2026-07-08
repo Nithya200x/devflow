@@ -43,6 +43,8 @@ def create_deployment():
             environment=environment,
             triggered_by=current_username,
         )
+        from services.repository_health_service import get_health_service
+        get_health_service().invalidate(project_id)
         return jsonify(dep), 201
     except DeploymentServiceError as e:
         return jsonify({"msg": str(e)}), 502
@@ -73,6 +75,8 @@ def rollback_deployment(deployment_id):
             return jsonify({"msg": "Deployment not found for this user"}), 404
 
         result = DeploymentService.rollback_deployment(deployment_id, current_username)
+        from services.repository_health_service import get_health_service
+        get_health_service().invalidate(dep["project_id"])
         return jsonify(result), 201
     except DeploymentServiceError as e:
         return jsonify({"msg": str(e)}), 502

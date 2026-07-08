@@ -115,6 +115,9 @@ def webhook():
             except Exception as e:
                 logger.warning(f"Failed to process alert event: {e}")
 
+    from services.repository_health_service import get_health_service
+    get_health_service().invalidate()
+
     return jsonify({"received": len(processed), "status": "ok"}), 200
 
 

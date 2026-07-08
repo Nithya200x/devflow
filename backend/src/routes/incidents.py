@@ -60,8 +60,12 @@ def handle_incidents():
             return jsonify({"msg": "title is required"}), 400
         i = IncidentService.create(
             title=data.get('title'),
-            severity=data.get('severity', 'medium')
+            severity=data.get('severity', 'medium'),
+            project_id=data.get('project_id'),
         )
+        if i.project_id:
+            from services.repository_health_service import get_health_service
+            get_health_service().invalidate(i.project_id)
         return jsonify({"message": "Incident created", "id": i.id}), 201
 
 @incidents_bp.route('/<int:incident_id>', methods=['PATCH'])
@@ -71,4 +75,7 @@ def update_incident(incident_id):
     if not data:
         return jsonify({"msg": "Request body is required"}), 400
     i = IncidentService.update(incident_id, data.get('status'))
+    if i and i.project_id:
+        from services.repository_health_service import get_health_service
+        get_health_service().invalidate(i.project_id)
     return jsonify({"message": "Incident updated"}), 200
