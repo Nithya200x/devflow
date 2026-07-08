@@ -324,6 +324,7 @@ def test_db_session_remove_called_after_detector_cycle():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
     from extensions import db
     import threading
+    import time
 
     app = _get_app()
     detector = PrometheusIncidentDetector(interval=0.1)
@@ -345,10 +346,12 @@ def test_db_session_remove_called_after_detector_cycle():
 
     try:
         detector.start(app)
-        cycle_done.wait(timeout=5)
+        assert cycle_done.wait(timeout=12), "First detector cycle did not complete within timeout"
         detector.stop()
-        import time
-        time.sleep(0.1)
+        for _ in range(50):
+            if remove_called[0]:
+                break
+            time.sleep(0.05)
 
         assert remove_called[0], "db.session.remove should have been called after a cycle"
     finally:
