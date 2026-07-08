@@ -19,8 +19,10 @@ _am = AlertmanagerService()
 @alertmanager_bp.route("/health", methods=["GET"])
 @jwt_required()
 def health():
-    status = _am.health_check()
-    return jsonify(status), 200 if status.get("connected") else 503
+    result = _am.health_check()
+    status = result.get("status", "unknown")
+    logger.info("Alertmanager health endpoint: status=%s, environment=%s", status, result.get("environment"))
+    return jsonify(result), 200
 
 
 @alertmanager_bp.route("/alerts", methods=["GET"])

@@ -204,3 +204,32 @@ def is_status_warning(status):
 
 def is_status_error(status):
     return status in ("authentication_failed", "connection_failed", "unreachable", "disabled")
+
+
+HEALTH_BADGE_COLORS = {
+    "healthy": "#10b981",
+    "connected": "#10b981",
+    "configured": "#10b981",
+    "available_locally": "#f59e0b",
+    "remote_environment": "#f59e0b",
+    "not_configured": "#6b7280",
+    "authentication_failed": "#ef4444",
+    "connection_failed": "#ef4444",
+    "unreachable": "#ef4444",
+    "disabled": "#6b7280",
+    "degraded": "#f59e0b",
+    "unknown": "#9ca3af",
+}
+
+
+def standard_health_response(service_name, status, configured=True, reachable=False, message=None, details=None):
+    env = get_environment_display()
+    return {
+        "service": service_name,
+        "status": status,
+        "configured": configured,
+        "reachable": reachable,
+        "environment": env,
+        "message": message or HEALTH_DISPLAY_NAMES.get(status, status),
+        "details": details or {},
+    }

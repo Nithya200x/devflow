@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
+import { HealthStatus } from '../../components/Common/StatusBadge';
 import * as githubService from '../../services/githubService';
 import * as projectService from '../../services/projectService';
 import * as kubernetesService from '../../services/kubernetesService';
@@ -27,40 +28,7 @@ const HEALTH_SERVICES = [
   { key: 'groq', label: 'Groq AI', icon: FiCpu },
 ];
 
-const STATUS_LABELS = {
-  healthy: 'Healthy',
-  available_locally: 'Available Locally',
-  connected: 'Connected',
-  configured: 'Configured',
-  not_configured: 'Not Configured',
-  authentication_failed: 'Auth Failed',
-  connection_failed: 'Connection Failed',
-  unreachable: 'Unreachable',
-  remote_environment: 'Remote',
-  disabled: 'Disabled',
-  degraded: 'Degraded',
-  offline: 'Offline',
-};
 
-function getStatusClass(status) {
-  if (!status) return 'offline';
-  if (['healthy', 'connected', 'configured'].includes(status)) return 'online';
-  if (['available_locally', 'remote_environment', 'degraded', 'warning'].includes(status)) return 'warning';
-  return 'offline';
-}
-
-function HealthStatus({ name, icon: Icon, status, detail }) {
-  const dotClass = getStatusClass(status);
-  const label = STATUS_LABELS[status] || (typeof status === 'string' ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
-  return (
-    <div className="health-item" title={detail || label}>
-      <div className={`health-dot ${dotClass}`} />
-      <Icon size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-      <span className="health-label">{name}</span>
-      <span className={`health-status ${dotClass}`}>{label}</span>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -106,11 +74,11 @@ export default function Dashboard() {
 
       setServiceHealth({
         github: ghHealth?.connected ? 'healthy' : 'not_configured',
-        docker: dockerHealth?.status || (dockerHealth?.connected ? 'healthy' : 'offline'),
-        kubernetes: k8sHealth?.status || (k8sHealth?.connected ? 'healthy' : 'offline'),
-        prometheus: promHealth?.status || (promHealth?.connected ? 'healthy' : 'offline'),
-        grafana: grafanaHealth?.status || (grafanaHealth?.connected ? 'healthy' : 'offline'),
-        alertmanager: amHealth?.status || (amHealth?.connected ? 'healthy' : 'offline'),
+        docker: dockerHealth?.status || 'unknown',
+        kubernetes: k8sHealth?.status || 'unknown',
+        prometheus: promHealth?.status || 'unknown',
+        grafana: grafanaHealth?.status || 'unknown',
+        alertmanager: amHealth?.status || 'unknown',
         groq: aiResult?.status || 'not_configured',
       });
 

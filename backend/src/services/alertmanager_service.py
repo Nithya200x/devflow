@@ -48,17 +48,30 @@ class AlertmanagerService:
             self.connect()
 
     def health_check(self) -> Dict[str, Any]:
+        from utils.environment import make_service_status, get_environment_display
         if not self._base_url:
-            return {"connected": False, "error": "ALERTMANAGER_URL not configured", "latency_ms": 0}
+            logger.info("Alertmanager health: ALERTMANAGER_URL not set, returning NOT_CONFIGURED")
+            base = make_service_status(False, "Alertmanager", status_override="not_configured")
+            base.update({"connected": False, "latency_ms": 0})
+            return base
         try:
             start = time.time()
             resp = requests.get(f"{self._base_url}/api/v2/status", timeout=5)
             elapsed = (time.time() - start) * 1000
             if resp.status_code == 200:
-                return {"connected": True, "latency_ms": round(elapsed, 2), "error": None}
-            return {"connected": False, "latency_ms": round(elapsed, 2), "error": f"HTTP {resp.status_code}"}
+                logger.info("Alertmanager health: connected, environment=%s", get_environment_display())
+                base = make_service_status(True, "Alertmanager")
+                base.update({"connected": True, "latency_ms": round(elapsed, 2)})
+                return base
+            logger.info("Alertmanager health: HTTP %s, environment=%s", resp.status_code, get_environment_display())
+            base = make_service_status(False, "Alertmanager", error=f"HTTP {resp.status_code}")
+            base.update({"connected": False, "latency_ms": round(elapsed, 2)})
+            return base
         except requests.RequestException as e:
-            return {"connected": False, "latency_ms": 0, "error": str(e)}
+            logger.info("Alertmanager health: error='%s', environment=%s", e, get_environment_display())
+            base = make_service_status(False, "Alertmanager", error=str(e))
+            base.update({"connected": False, "latency_ms": 0})
+            return base
 
     def get_alerts(self, silenced: bool = False, inhibited: bool = False) -> List[Dict[str, Any]]:
         self._ensure_connected()

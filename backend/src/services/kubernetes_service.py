@@ -86,20 +86,14 @@ class KubernetesService:
             self.connect()
 
         if not self._connected or not self._core:
+            env = get_environment_display()
             if not self._kubeconfig_available():
+                logger.info("Kubernetes health: no kubeconfig, environment=%s, returning NOT_CONFIGURED", env)
                 base = make_service_status(False, "Kubernetes", is_local_service=True)
                 base["detail"] = "Kubernetes is not configured. Configure kubeconfig or run in a cluster."
-                base.update({
-                    "connected": False,
-                    "cluster_name": "",
-                    "server_version": "",
-                    "node_count": 0,
-                    "namespace_count": 0,
-                    "deployment_count": 0,
-                    "pod_count": 0,
-                })
-                return base
-            base = make_service_status(False, "Kubernetes", is_local_service=is_cloud())
+            else:
+                logger.info("Kubernetes health: kubeconfig found but connection failed, environment=%s", env)
+                base = make_service_status(False, "Kubernetes", is_local_service=is_cloud())
             base.update({
                 "connected": False,
                 "cluster_name": "",
@@ -123,6 +117,8 @@ class KubernetesService:
                 logger.debug("Failed to list deployments for health check: %s", e)
 
             server_version = getattr(version, 'git_version', '')
+            logger.info("Kubernetes health: connected, cluster=%s, version=%s, environment=%s",
+                        self._cluster_info.get("name", ""), server_version, get_environment_display())
             base = make_service_status(True, "Kubernetes")
             base["detail"] = "Kubernetes cluster is connected and operational."
             base.update({
@@ -139,6 +135,8 @@ class KubernetesService:
             error_str = str(e)
             self._connected = False
             error_lower = error_str.lower()
+            env = get_environment_display()
+            logger.info("Kubernetes health: error='%s', environment=%s", error_str, env)
             if "refused" in error_lower or "connection refused" in error_lower:
                 if is_cloud():
                     base = make_service_status(False, "Kubernetes", is_local_service=True, error=error_str)

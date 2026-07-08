@@ -4,6 +4,7 @@ import { FiActivity, FiBarChart2, FiPieChart, FiAlertTriangle, FiServer, FiLayer
 import { StatCard } from '../../components/Cards/StatCard';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
+import { StatusBadge, getStatusColor } from '../../components/Common/StatusBadge';
 import * as prometheusService from '../../services/prometheusService';
 import * as grafanaService from '../../services/grafanaService';
 import * as alertmanagerService from '../../services/alertmanagerService';
@@ -25,9 +26,9 @@ export default function MonitoringDashboard() {
         alertmanagerService.getAlertmanagerHealth(),
         alertmanagerService.getAlerts(),
       ]);
-      setPromHealth(ph.status === 'fulfilled' ? ph.value : { connected: false, error: 'Failed to connect' });
-      setGrafanaHealth(gh.status === 'fulfilled' ? gh.value : { connected: false, error: 'Failed to connect' });
-      setAmHealth(ah.status === 'fulfilled' ? ah.value : { connected: false, error: 'Failed to connect' });
+      setPromHealth(ph.status === 'fulfilled' ? ph.value : { status: 'connection_failed', connected: false, error: 'Failed to connect' });
+      setGrafanaHealth(gh.status === 'fulfilled' ? gh.value : { status: 'connection_failed', connected: false, error: 'Failed to connect' });
+      setAmHealth(ah.status === 'fulfilled' ? ah.value : { status: 'connection_failed', connected: false, error: 'Failed to connect' });
       setAlerts(alertsData.status === 'fulfilled' ? (alertsData.value.alerts || []) : []);
       setError(null);
     } catch (err) {
@@ -56,13 +57,11 @@ export default function MonitoringDashboard() {
       <div className="grid-cards" style={{ marginBottom: '2.5rem' }}>
         <div className="glass-panel" style={{ cursor: 'pointer' }} onClick={() => navigate('/monitoring/metrics')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <FiBarChart2 size={20} style={{ color: promHealth?.connected ? 'var(--success-color)' : 'var(--text-secondary)' }} />
+            <FiBarChart2 size={20} style={{ color: getStatusColor(promHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Prometheus</h3>
-            <span className={`badge ${promHealth?.connected ? 'success' : 'danger'}`} style={{ marginLeft: 'auto' }}>
-              {promHealth?.connected ? 'Connected' : 'Disconnected'}
-            </span>
+            <StatusBadge status={promHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
           </div>
-          {promHealth?.connected ? (
+          {['healthy', 'connected', 'configured'].includes(promHealth?.status) ? (
             <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
               <div><span className="deploy-info-label">Version</span><span className="deploy-info-value">{promHealth.version || 'N/A'}</span></div>
               <div><span className="deploy-info-label">Latency</span><span className="deploy-info-value">{promHealth.latency_ms ? `${promHealth.latency_ms}ms` : 'N/A'}</span></div>
@@ -74,13 +73,11 @@ export default function MonitoringDashboard() {
 
         <div className="glass-panel" style={{ cursor: 'pointer' }} onClick={() => navigate('/monitoring/dashboards')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <FiPieChart size={20} style={{ color: grafanaHealth?.connected ? 'var(--success-color)' : 'var(--text-secondary)' }} />
+            <FiPieChart size={20} style={{ color: getStatusColor(grafanaHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Grafana</h3>
-            <span className={`badge ${grafanaHealth?.connected ? 'success' : 'danger'}`} style={{ marginLeft: 'auto' }}>
-              {grafanaHealth?.connected ? 'Connected' : 'Disconnected'}
-            </span>
+            <StatusBadge status={grafanaHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
           </div>
-          {grafanaHealth?.connected ? (
+          {['healthy', 'connected', 'configured'].includes(grafanaHealth?.status) ? (
             <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
               <div><span className="deploy-info-label">Version</span><span className="deploy-info-value">{grafanaHealth.version || 'N/A'}</span></div>
               <div><span className="deploy-info-label">Latency</span><span className="deploy-info-value">{grafanaHealth.latency_ms ? `${grafanaHealth.latency_ms}ms` : 'N/A'}</span></div>
@@ -92,16 +89,14 @@ export default function MonitoringDashboard() {
 
         <div className="glass-panel" style={{ cursor: 'pointer' }} onClick={() => navigate('/monitoring/alerts')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <FiAlertTriangle size={20} style={{ color: firingAlerts.length > 0 ? 'var(--danger-color)' : 'var(--success-color)' }} />
+            <FiAlertTriangle size={20} style={{ color: firingAlerts.length > 0 ? '#ef4444' : getStatusColor(amHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Alertmanager</h3>
-            <span className={`badge ${amHealth?.connected ? 'success' : 'danger'}`} style={{ marginLeft: 'auto' }}>
-              {amHealth?.connected ? 'Connected' : 'Disconnected'}
-            </span>
+            <StatusBadge status={amHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
           </div>
-          {amHealth?.connected ? (
+          {['healthy', 'connected', 'configured'].includes(amHealth?.status) ? (
             <div>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'var(--danger-color)', fontWeight: 600 }}>{firingAlerts.length} firing</span>
+                <span style={{ color: '#ef4444', fontWeight: 600 }}>{firingAlerts.length} firing</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{alerts.length} total</span>
               </div>
               {firingAlerts.length > 0 && (

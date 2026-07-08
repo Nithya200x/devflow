@@ -71,32 +71,30 @@ class DockerService:
             self.connect()
 
         if not self._connected or not self._client:
-            if not os.getenv("DOCKER_HOST"):
-                return {
-                    "status": "not_configured",
-                    "detail": "Docker is not configured. Set DOCKER_HOST environment variable or run on a machine with Docker installed.",
-                    "environment": get_environment_display(),
-                    "connected": False,
-                    "version": "",
-                    "api_version": "",
-                    "container_count": 0,
-                    "image_count": 0,
-                }
-            return {
-                "status": "unavailable",
-                "detail": "Docker connection failed.",
-                "environment": get_environment_display(),
+            docker_host = os.getenv("DOCKER_HOST")
+            env = get_environment_display()
+            if not docker_host:
+                logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning NOT_CONFIGURED", env)
+                base = make_service_status(False, "Docker", status_override="not_configured")
+                base["detail"] = "Docker is not configured. Set DOCKER_HOST or run on a machine with Docker installed."
+            else:
+                logger.info("Docker health: connection failed, DOCKER_HOST=%s, environment=%s, returning CONNECTION_FAILED", docker_host, env)
+                base = make_service_status(False, "Docker", status_override="connection_failed")
+                base["detail"] = f"Docker connection to {docker_host} failed."
+            base.update({
                 "connected": False,
                 "version": "",
                 "api_version": "",
                 "container_count": 0,
                 "image_count": 0,
-            }
+            })
+            return base
 
         try:
             self._client.ping()
             info = self._client.info()
             version = self._client.version()
+            logger.info("Docker health: connected, environment=%s, version=%s", get_environment_display(), version.get("Version", ""))
             base = make_service_status(True, "Docker")
             base.update({
                 "connected": True,
@@ -116,10 +114,13 @@ class DockerService:
             error_str = str(e)
             self._connected = False
             error_lower = error_str.lower()
+            env = get_environment_display()
             if ("refused" in error_lower or "connection refused" in error_lower) and is_cloud():
+                logger.info("Docker health: connection refused, environment=%s, returning REMOTE_UNAVAILABLE", env)
                 base = make_service_status(False, "Docker", is_local_service=True, error=error_str)
                 base["detail"] = "Docker Engine is running on the development machine and cannot be accessed from the cloud deployment."
             else:
+                logger.info("Docker health: error='%s', environment=%s", error_str, env)
                 base = make_service_status(False, "Docker", error=error_str)
             base.update({
                 "connected": False,
