@@ -1332,25 +1332,15 @@ tr:hover td {
 
 .score-ring circle {
   fill: none;
-  stroke-width: 6;
-  cx: 50;
-  cy: 50;
-  r: 42;
-}
-
-.score-bg {
-  stroke: rgba(255, 255, 255, 0.04);
-}
-
-.score-fill {
-  stroke-linecap: round;
-  transition: stroke-dashoffset 1.5s ease;
-  filter: drop-shadow(0 0 4px currentColor);
 }
 
 .score-label {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   text-align: center;
+  pointer-events: none;
 }
 
 .score-value {
