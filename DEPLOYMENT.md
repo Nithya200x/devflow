@@ -223,7 +223,7 @@ docker compose exec grafana grafana-cli admin reset-admin-password
 ### Worker timeout
 
 Backend workers being killed after ~6 minutes:
-1. Increase gunicorn `--timeout` (currently 300s)
+1. Use `gunicorn wsgi:app` to start the application
 2. Reduce AI `AI_TIMEOUT` or increase `AI_MAX_CONCURRENT_REQUESTS`
 
 ### Frontend build fails

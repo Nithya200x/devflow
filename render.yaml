@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: python init_db.py && gunicorn "app:create_app()" --bind 0.0.0.0:$PORT --workers 2 --access-logfile - --error-logfile -
+    startCommand: python init_db.py && gunicorn "wsgi:app" --bind 0.0.0.0:$PORT --workers 2 --access-logfile - --error-logfile -
     envVars:
       - key: FLASK_ENV
         value: production
@@ -33,8 +33,6 @@ services:
       - key: PROMETHEUS_PASSWORD
         sync: false
       - key: GRAFANA_URL
-        sync: false
-      - key: JENKINS_URL
         sync: false
       - key: PYTHONPATH
         value: src

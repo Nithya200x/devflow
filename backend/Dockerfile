@@ -28,4 +28,4 @@ LABEL org.opencontainers.image.title="DevFlow Backend" \
       org.opencontainers.image.description="DevFlow SaaS Backend API" \
       org.opencontainers.image.version="2.0.0"
 
-CMD ["sh", "-c", "python init_db.py && gunicorn \"app:app\" --bind 0.0.0.0:${PORT:-5000} --workers 3 --timeout 300 --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "python init_db.py && gunicorn \"wsgi:app\" --bind 0.0.0.0:${PORT:-5000} --workers 3 --timeout 300 --access-logfile - --error-logfile -"]
