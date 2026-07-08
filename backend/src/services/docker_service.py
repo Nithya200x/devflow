@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import docker
 from docker.errors import DockerException, NotFound, APIError
-from utils.environment import make_service_status, get_environment_display, is_cloud
+from utils.environment import make_service_status, get_environment_display, is_cloud, STATUS_REMOTE_UNAVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,14 @@ class DockerService:
             docker_host = os.getenv("DOCKER_HOST")
             env = get_environment_display()
             if not docker_host:
-                logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning NOT_CONFIGURED", env)
-                base = make_service_status(False, "Docker", status_override="not_configured")
-                base["detail"] = "Docker is not configured. Set DOCKER_HOST or run on a machine with Docker installed."
+                if is_cloud():
+                    logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning REMOTE_UNAVAILABLE", env)
+                    base = make_service_status(False, "Docker", status_override="remote_unavailable")
+                    base["detail"] = "Docker daemon cannot be accessed from the Render deployment."
+                else:
+                    logger.info("Docker health: DOCKER_HOST not set, environment=%s, returning NOT_CONFIGURED", env)
+                    base = make_service_status(False, "Docker", status_override="not_configured")
+                    base["detail"] = "Docker is not configured. Set DOCKER_HOST or run on a machine with Docker installed."
             else:
                 logger.info("Docker health: connection failed, DOCKER_HOST=%s, environment=%s, returning CONNECTION_FAILED", docker_host, env)
                 base = make_service_status(False, "Docker", status_override="connection_failed")

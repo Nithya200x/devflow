@@ -14,7 +14,7 @@ _grafana = GrafanaService()
 @jwt_required()
 def health():
     status = _grafana.health_check()
-    return jsonify(status), 200 if status.get("connected") else 503
+    return jsonify(status), 200
 
 
 @grafana_bp.route("/dashboards", methods=["GET"])

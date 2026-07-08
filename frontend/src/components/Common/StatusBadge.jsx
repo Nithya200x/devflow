@@ -4,6 +4,7 @@ export const STATUS_LABELS = {
   connected: 'Connected',
   configured: 'Configured',
   not_configured: 'Not Configured',
+  remote_unavailable: 'Remote Unavailable',
   authentication_failed: 'Auth Failed',
   connection_failed: 'Connection Failed',
   unreachable: 'Unreachable',
@@ -16,7 +17,7 @@ export const STATUS_LABELS = {
 };
 
 const HEALTHY_STATUSES = ['healthy', 'connected', 'configured'];
-const WARNING_STATUSES = ['available_locally', 'remote_environment', 'degraded', 'warning', 'service_unavailable'];
+const WARNING_STATUSES = ['available_locally', 'remote_environment', 'remote_unavailable', 'degraded', 'warning', 'service_unavailable'];
 const ERROR_STATUSES = ['authentication_failed', 'connection_failed', 'unreachable'];
 
 export function getStatusClass(status) {
@@ -29,7 +30,8 @@ export function getStatusClass(status) {
 export function getStatusColor(status) {
   const colors = {
     healthy: '#10b981', connected: '#10b981', configured: '#10b981',
-    available_locally: '#f59e0b', remote_environment: '#f59e0b', degraded: '#f59e0b', service_unavailable: '#f59e0b',
+    available_locally: '#0ea5e9', remote_environment: '#0ea5e9', degraded: '#f59e0b', service_unavailable: '#f59e0b',
+    remote_unavailable: '#f59e0b',
     not_configured: '#6b7280', disabled: '#6b7280',
     authentication_failed: '#ef4444', connection_failed: '#ef4444', unreachable: '#ef4444',
     unknown: '#9ca3af', offline: '#9ca3af',

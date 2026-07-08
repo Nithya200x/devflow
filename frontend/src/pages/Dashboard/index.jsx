@@ -74,11 +74,11 @@ export default function Dashboard() {
 
       setServiceHealth({
         github: ghHealth?.connected ? 'healthy' : 'not_configured',
-        docker: dockerHealth?.status || 'unknown',
-        kubernetes: k8sHealth?.status || 'unknown',
-        prometheus: promHealth?.status || 'unknown',
-        grafana: grafanaHealth?.status || 'unknown',
-        alertmanager: amHealth?.status || 'unknown',
+        docker: dockerHealth?.status || 'not_configured',
+        kubernetes: k8sHealth?.status || 'not_configured',
+        prometheus: promHealth?.status || 'not_configured',
+        grafana: grafanaHealth?.status || 'not_configured',
+        alertmanager: amHealth?.status || 'not_configured',
         groq: aiResult?.status || 'not_configured',
       });
 
@@ -156,7 +156,7 @@ export default function Dashboard() {
           </h3>
           <div className="health-matrix">
             {HEALTH_SERVICES.map(svc => (
-              <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={serviceHealth[svc.key] || 'unknown'} />
+              <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={serviceHealth[svc.key] || 'not_configured'} />
             ))}
           </div>
         </div>

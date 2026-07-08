@@ -89,6 +89,7 @@ STATUS_AVAILABLE_LOCALLY = "available_locally"
 STATUS_CONNECTED = "connected"
 STATUS_CONFIGURED = "configured"
 STATUS_NOT_CONFIGURED = "not_configured"
+STATUS_REMOTE_UNAVAILABLE = "remote_unavailable"
 STATUS_AUTH_FAILED = "authentication_failed"
 STATUS_CONNECTION_FAILED = "connection_failed"
 STATUS_UNREACHABLE = "unreachable"
@@ -101,6 +102,7 @@ HEALTH_DISPLAY_NAMES = {
     "connected": "Connected",
     "configured": "Configured",
     "not_configured": "Not Configured",
+    "remote_unavailable": "Remote Unavailable",
     "authentication_failed": "Authentication Failed",
     "connection_failed": "Connection Failed",
     "unreachable": "Unreachable",
@@ -199,7 +201,7 @@ def is_status_healthy(status):
 
 
 def is_status_warning(status):
-    return status in ("available_locally", "remote_environment")
+    return status in ("available_locally", "remote_environment", "remote_unavailable")
 
 
 def is_status_error(status):
@@ -210,8 +212,9 @@ HEALTH_BADGE_COLORS = {
     "healthy": "#10b981",
     "connected": "#10b981",
     "configured": "#10b981",
-    "available_locally": "#f59e0b",
-    "remote_environment": "#f59e0b",
+    "available_locally": "#0ea5e9",
+    "remote_environment": "#0ea5e9",
+    "remote_unavailable": "#f59e0b",
     "not_configured": "#6b7280",
     "authentication_failed": "#ef4444",
     "connection_failed": "#ef4444",

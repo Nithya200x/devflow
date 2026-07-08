@@ -59,7 +59,7 @@ export default function MonitoringDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <FiBarChart2 size={20} style={{ color: getStatusColor(promHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Prometheus</h3>
-            <StatusBadge status={promHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
+            <StatusBadge status={promHealth?.status || 'not_configured'} style={{ marginLeft: 'auto' }} />
           </div>
           {['healthy', 'connected', 'configured'].includes(promHealth?.status) ? (
             <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
@@ -75,7 +75,7 @@ export default function MonitoringDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <FiPieChart size={20} style={{ color: getStatusColor(grafanaHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Grafana</h3>
-            <StatusBadge status={grafanaHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
+            <StatusBadge status={grafanaHealth?.status || 'not_configured'} style={{ marginLeft: 'auto' }} />
           </div>
           {['healthy', 'connected', 'configured'].includes(grafanaHealth?.status) ? (
             <div className="grid-2-cols" style={{ gap: '0.75rem' }}>
@@ -91,7 +91,7 @@ export default function MonitoringDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
             <FiAlertTriangle size={20} style={{ color: firingAlerts.length > 0 ? '#ef4444' : getStatusColor(amHealth?.status) }} />
             <h3 style={{ margin: 0 }}>Alertmanager</h3>
-            <StatusBadge status={amHealth?.status || 'unknown'} style={{ marginLeft: 'auto' }} />
+            <StatusBadge status={amHealth?.status || 'not_configured'} style={{ marginLeft: 'auto' }} />
           </div>
           {['healthy', 'connected', 'configured'].includes(amHealth?.status) ? (
             <div>

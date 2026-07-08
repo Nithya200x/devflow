@@ -13,7 +13,7 @@ prometheus_bp = Blueprint("prometheus", __name__)
 def health():
     logger.info("prom health service id=%s connected=%s", id(prometheus_service), prometheus_service._connected)
     status = prometheus_service.health_check()
-    return jsonify(status), 200 if status.get("connected") else 503
+    return jsonify(status), 200
 
 
 @prometheus_bp.route("/query", methods=["POST"])

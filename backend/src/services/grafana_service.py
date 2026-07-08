@@ -63,7 +63,13 @@ class GrafanaService:
 
     def health_check(self) -> Dict[str, Any]:
         if not self._base_url:
-            return {"connected": False, "error": "GRAFANA_URL not configured", "version": "", "latency_ms": 0}
+            return {
+                "status": "not_configured",
+                "connected": False,
+                "error": "GRAFANA_URL not configured",
+                "version": "",
+                "latency_ms": 0,
+            }
         try:
             start = time.time()
             auth = None
@@ -78,14 +84,27 @@ class GrafanaService:
             if resp.status_code == 200:
                 data = resp.json()
                 return {
+                    "status": "healthy",
                     "connected": True,
                     "version": data.get("version", ""),
                     "latency_ms": round(elapsed, 2),
                     "error": None,
                 }
-            return {"connected": False, "version": "", "latency_ms": round(elapsed, 2), "error": f"HTTP {resp.status_code}"}
+            return {
+                "status": "connection_failed",
+                "connected": False,
+                "version": "",
+                "latency_ms": round(elapsed, 2),
+                "error": f"HTTP {resp.status_code}",
+            }
         except requests.RequestException as e:
-            return {"connected": False, "version": "", "latency_ms": 0, "error": str(e)}
+            return {
+                "status": "connection_failed",
+                "connected": False,
+                "version": "",
+                "latency_ms": 0,
+                "error": str(e),
+            }
 
     def list_dashboards(self) -> List[Dict[str, Any]]:
         self._ensure_connected()

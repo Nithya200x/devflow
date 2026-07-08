@@ -222,9 +222,10 @@ def run_diagnostics():
             results.append({
                 "name": check["name"],
                 "key": check["key"],
-                "status": "healthy" if ok else "unhealthy",
+                "status": result.get("status", "healthy" if ok else "unhealthy"),
                 "connected": ok,
                 "latency_ms": result.get("latency_ms", elapsed),
+                "detail": result.get("detail", ""),
                 "version": result.get("version", result.get("provider", "N/A")),
                 "error": result.get("error"),
                 "last_checked": datetime.datetime.now(datetime.timezone.utc).isoformat(),
