@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from services.alertmanager_service import AlertmanagerService
@@ -34,11 +35,66 @@ def get_alerts():
     return jsonify({"alerts": alerts, "count": len(alerts)}), 200
 
 
-@alertmanager_bp.route("/silences", methods=["GET"])
+@alertmanager_bp.route("/alerts/history", methods=["GET"])
 @jwt_required()
-def get_silences():
-    silences = _am.get_silences()
-    return jsonify({"silences": silences, "count": len(silences)}), 200
+def get_alert_history():
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    result = _am.get_alert_history(limit=limit, offset=offset)
+    return jsonify(result), 200
+
+
+@alertmanager_bp.route("/alerts/stats", methods=["GET"])
+@jwt_required()
+def get_alert_stats():
+    stats = _am.get_alert_stats()
+    return jsonify(stats), 200
+
+
+@alertmanager_bp.route("/alerts/<fingerprint>", methods=["GET"])
+@jwt_required()
+def get_alert_detail(fingerprint: str):
+    detail = _am.get_alert_detail(fingerprint)
+    if not detail:
+        return jsonify({"msg": "Alert not found"}), 404
+    return jsonify(detail), 200
+
+
+@alertmanager_bp.route("/silences", methods=["GET", "POST"])
+@jwt_required()
+def handle_silences():
+    if request.method == "GET":
+        silences = _am.get_silences()
+        return jsonify({"silences": silences, "count": len(silences)}), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        if not data or "matchers" not in data:
+            return jsonify({"msg": "matchers is required"}), 400
+        result = _am.create_silence(
+            matchers=data["matchers"],
+            duration=data.get("duration", "1h"),
+            comment=data.get("comment", ""),
+            created_by=data.get("created_by", "devflow"),
+        )
+        if not result:
+            return jsonify({"msg": "Failed to create silence. Check Alertmanager connection."}), 502
+        return jsonify(result), 201
+
+
+@alertmanager_bp.route("/silences/<silence_id>", methods=["DELETE"])
+@jwt_required()
+def expire_silence(silence_id: str):
+    ok = _am.expire_silence(silence_id)
+    if not ok:
+        return jsonify({"msg": "Failed to expire silence"}), 502
+    return jsonify({"msg": "Silence expired"}), 200
+
+
+@alertmanager_bp.route("/notifications", methods=["GET"])
+@jwt_required()
+def get_notification_config():
+    config = _am.get_notification_config()
+    return jsonify(config), 200
 
 
 @alertmanager_bp.route("/webhook", methods=["POST"])
@@ -62,7 +118,9 @@ def webhook():
     return jsonify({"received": len(processed), "status": "ok"}), 200
 
 
-def _map_alert_to_event(alert: dict) -> OrchestrationEvent:
+def _map_alert_to_event(alert: dict) -> Optional[OrchestrationEvent]:
+    if alert.get("status") != "firing":
+        return None
     alertname = alert.get("alertname", "")
     severity = alert.get("severity", "info")
     namespace = alert.get("namespace", "")

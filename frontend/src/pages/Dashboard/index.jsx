@@ -150,21 +150,50 @@ export default function Dashboard() {
       </div>
 
       <div className="grid-2-cols" style={{ marginBottom: '1.25rem' }}>
-        <div className="glass-panel">
-          <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiShield /> System Health Matrix
-          </h3>
-          <div className="health-matrix">
-            {HEALTH_SERVICES.map(svc => (
-              <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={serviceHealth[svc.key] || 'not_configured'} />
-            ))}
+        <div>
+          <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
+            <div className="card-header">
+              <FiShield size={16} />
+              <h3>System Health Matrix</h3>
+            </div>
+            <div className="health-matrix">
+              {HEALTH_SERVICES.map(svc => (
+                <HealthStatus key={svc.key} name={svc.label} icon={svc.icon} status={serviceHealth[svc.key] || 'not_configured'} />
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-panel card-hover" onClick={() => navigate('/monitoring/alerts')}>
+            <div className="card-header" style={{ marginBottom: '0.75rem' }}>
+              <FiAlertTriangle size={16} />
+              <h3>Alert Summary</h3>
+            </div>
+            <div style={{ display: 'flex', gap: '1.5rem' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{incidents.length}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Incidents</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: openIncidents > 0 ? '#ef4444' : '#22c55e' }}>{openIncidents}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Active</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{connectedRepos}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Projects</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#a855f7' }}>{aiFixes}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>AI Fixes</div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="glass-panel">
-          <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiActivity /> Recent Activity
-          </h3>
+          <div className="card-header">
+            <FiActivity size={16} />
+            <h3>Recent Activity</h3>
+          </div>
           <div className="activity-feed">
             {ghStatus?.latest_commit && (
               <div className="activity-row">
@@ -217,10 +246,11 @@ export default function Dashboard() {
 
       {projects.length > 0 && (
         <div className="glass-panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-              <FiBox /> Connected Projects
-            </h3>
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <div className="card-header" style={{ margin: 0 }}>
+              <FiBox size={16} />
+              <h3>Connected Projects</h3>
+            </div>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/github/repos')}>
               View All
             </button>
@@ -232,8 +262,8 @@ export default function Dashboard() {
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{p.full_name}</div>
+                  <div className="text-truncate" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
+                  <div className="text-truncate" style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{p.full_name}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   {p.language && <span className="badge neutral" style={{ fontSize: '0.6rem' }}>{p.language}</span>}
@@ -246,7 +276,7 @@ export default function Dashboard() {
       )}
 
       {!ghStatus?.connected && (
-        <div className="glass-panel" style={{ marginTop: '1.25rem', textAlign: 'center', padding: '2.5rem', borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+        <div className="glass-panel" style={{ marginTop: '1.25rem', textAlign: 'center', padding: '2.5rem', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
           <FiGithub size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }} />
           <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Connect Your GitHub Account</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem', maxWidth: '400px', margin: '0 auto 1rem' }}>

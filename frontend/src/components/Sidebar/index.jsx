@@ -2,7 +2,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiLayout, FiBox, FiGitBranch, FiGithub, FiServer, FiAlertTriangle,
   FiActivity, FiCpu, FiBarChart2, FiShield, FiLogOut,
-  FiLayers, FiTerminal, FiMonitor, FiClock, FiTrendingUp, FiTool
+  FiLayers, FiTerminal, FiMonitor, FiClock, FiTrendingUp, FiTool,
+  FiBell,
 } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { getInitials } from '../../utils/helpers';
@@ -23,6 +24,7 @@ const NAV_SECTIONS = [
       { path: '/orchestration/incidents', label: 'Incidents', icon: FiAlertTriangle },
       { path: '/orchestration/root-cause', label: 'AI Analysis', icon: FiActivity },
       { path: '/monitoring', label: 'Observability', icon: FiBarChart2 },
+      { path: '/monitoring/alerts', label: 'Alertmanager', icon: FiBell },
     ],
   },
   {
