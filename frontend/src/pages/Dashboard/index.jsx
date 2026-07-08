@@ -182,7 +182,7 @@ export default function Dashboard() {
                     style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)' }}>
                     <HealthScore
                       score={s.score} trend={s.trend} color={s.color}
-                      label={s.label} size="sm" showBreakdown={false}
+                      label={s.label} size="sm"
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="text-truncate" style={{ fontWeight: 600, fontSize: '0.85rem' }}>{s.project_name}</div>

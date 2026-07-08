@@ -767,7 +767,7 @@ function AiRcaTab({ overview }) {
     <div className="page-enter">
       <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <HealthScore score={pct} label={pct > 70 ? 'High' : pct > 40 ? 'Medium' : 'Low'} color={pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444'} size="sm" showBreakdown={false} />
+          <HealthScore score={pct} label={pct > 70 ? 'High' : pct > 40 ? 'Medium' : 'Low'} color={pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444'} size="sm" />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{meta.root_cause}</div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
@@ -1021,8 +1021,6 @@ export default function RepositoryCommandCenter() {
               label={hs.label ?? 'Unknown'}
               breakdown={hs.breakdown}
               weights={hs.weights}
-              calculatedAt={hs.calculated_at}
-              onRefresh={fetchHealthScore}
             />
           </div>
         </div>

@@ -1327,6 +1327,7 @@ tr:hover td {
 
 .score-ring svg {
   transform: rotate(-90deg);
+  transform-origin: center center;
 }
 
 .score-ring circle {
