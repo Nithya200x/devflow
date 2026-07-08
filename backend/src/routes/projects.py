@@ -34,7 +34,6 @@ def list_projects():
         "forks": p.forks,
         "visibility": p.visibility,
         "status": p.status,
-        "jenkins_job_name": p.jenkins_job_name,
         "docker_container": p.docker_container,
         "kubernetes_namespace": p.kubernetes_namespace,
         "kubernetes_deployment": p.kubernetes_deployment,
@@ -98,7 +97,6 @@ def connect_repo_to_project():
         topics=",".join(topics),
         status="active",
         connected_by=username,
-        jenkins_job_name=data.get("jenkins_job_name", ""),
         docker_container=data.get("docker_container", ""),
         docker_image=data.get("docker_image", ""),
         kubernetes_namespace=data.get("kubernetes_namespace", ""),
@@ -144,7 +142,6 @@ def project_overview(project_id):
     from services.prometheus_service import prometheus_service
     from services.grafana_service import GrafanaService
     from services.alertmanager_service import AlertmanagerService
-    from services.jenkins_service import JenkinsService
     from utils.encryption import decrypt_token
     from config.config import Config
 
@@ -195,29 +192,6 @@ def project_overview(project_id):
             overview["github"]["last_checked"] = datetime.datetime.utcnow().isoformat()
     else:
         overview["github"]["error_message"] = "GitHub token not configured"
-
-    # Jenkins
-    overview["jenkins"] = {"connected": bool(project.jenkins_job_name), "service_status": "not_configured", "configured": bool(project.jenkins_job_name), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
-    if project.jenkins_job_name:
-        try:
-            js = JenkinsService()
-            health = js.health_check()
-            history = js.get_build_history()
-            overview["jenkins"].update({
-                "healthy": health.get("status") == "ok" if isinstance(health, dict) else False,
-                "job_name": project.jenkins_job_name,
-                "build_history": history.get("builds", []) if isinstance(history, dict) else [],
-                "last_build": history.get("builds", [None])[0] if isinstance(history, dict) and history.get("builds") else None,
-                "service_status": "connected",
-                "last_checked": datetime.datetime.utcnow().isoformat(),
-            })
-        except Exception as e:
-            logger.warning(f"Jenkins overview error: {e}")
-            overview["jenkins"]["error_message"] = str(e)
-            overview["jenkins"]["service_status"] = "unavailable"
-            overview["jenkins"]["last_checked"] = datetime.datetime.utcnow().isoformat()
-    else:
-        overview["jenkins"]["healthy"] = False
 
     # Docker
     overview["docker"] = {"connected": bool(project.docker_container), "service_status": "not_configured", "configured": bool(project.docker_container), "last_checked": datetime.datetime.utcnow().isoformat(), "error_message": None}
@@ -419,12 +393,6 @@ def project_overview(project_id):
     if has_critical:
         health = "critical"
         issues.append("Critical incident detected")
-    if overview.get("jenkins", {}).get("last_build"):
-        lb = overview["jenkins"]["last_build"]
-        if isinstance(lb, dict) and lb.get("result") == "FAILURE":
-            if health == "healthy":
-                health = "warning"
-            issues.append("Last build failed")
     if overview.get("docker", {}).get("container_status") == "running":
         pass
     elif project.docker_container and not overview["docker"].get("running"):
@@ -484,25 +452,6 @@ def project_timeline(project_id):
             })
     except Exception as e:
         logger.warning(f"GitHub timeline error: {e}")
-
-    # Jenkins events
-    if project.jenkins_job_name:
-        try:
-            from config.config import Config
-            from services.jenkins_service import JenkinsService
-            js = JenkinsService(Config.JENKINS_URL, Config.JENKINS_USERNAME, Config.JENKINS_API_TOKEN, project.jenkins_job_name)
-            history = js.get_build_history()
-            for b in (history.get("builds", []) if isinstance(history, dict) else [])[:10]:
-                events.append({
-                    "timestamp": b.get("timestamp", ""),
-                    "service": "Jenkins",
-                    "event_type": "build",
-                    "status": "success" if b.get("result") == "SUCCESS" else ("failed" if b.get("result") == "FAILURE" else "running"),
-                    "message": f"Build #{b.get('number', '?')}: {b.get('result', 'PENDING')}",
-                    "metadata": {"build_number": b.get("number", 0), "duration": b.get("duration", 0), "url": b.get("url", "")},
-                })
-        except Exception as e:
-            logger.warning(f"Jenkins timeline error: {e}")
 
     # Docker events
     if project.docker_container:
@@ -599,22 +548,11 @@ def project_health(project_id):
 
     checks = {
         "github": {"status": "healthy", "message": "Connected"},
-        "jenkins": {"status": "disconnected", "message": "No Jenkins job configured"},
         "docker": {"status": "disconnected", "message": "No Docker container configured"},
         "kubernetes": {"status": "disconnected", "message": "No Kubernetes deployment configured"},
         "prometheus": {"status": "disconnected", "message": "Prometheus not configured"},
         "grafana": {"status": "disconnected", "message": "No Grafana dashboard configured"},
     }
-
-    if project.jenkins_job_name:
-        from config.config import Config
-        try:
-            from services.jenkins_service import JenkinsService
-            js = JenkinsService()
-            h = js.health_check()
-            checks["jenkins"] = {"status": "healthy" if h.get("status") == "ok" else "unhealthy", "message": "Jenkins reachable" if h.get("status") == "ok" else "Jenkins unreachable"}
-        except Exception:
-            checks["jenkins"] = {"status": "unhealthy", "message": "Failed to connect to Jenkins"}
 
     if project.docker_container:
         try:
@@ -667,45 +605,3 @@ def project_health(project_id):
             overall = "warning"
 
     return jsonify({"overall": overall, "checks": checks}), 200
-
-
-@projects_bp.route('/<int:project_id>/deploy', methods=['POST'])
-@jwt_required()
-def project_deploy(project_id):
-    username = get_jwt_identity()
-    project = ConnectedProject.query.filter_by(id=project_id, connected_by=username).first()
-    if not project:
-        return jsonify({"msg": "Project not found"}), 404
-    if not project.jenkins_job_name:
-        return jsonify({"msg": "No Jenkins job configured for this project"}), 400
-
-    from config.config import Config
-    from services.jenkins_service import JenkinsService
-    from services.github_auth import PATGitHubAuth
-    from services.github_service import GitHubService
-    from utils.encryption import decrypt_token
-
-    user = User.query.filter_by(username=username).first()
-    if user and user.github_token:
-        try:
-            token = decrypt_token(user.github_token)
-            auth = PATGitHubAuth(token)
-            gh = GitHubService(auth)
-            commits = gh.get_commits(project.github_owner, project.github_repo, per_page=1)
-            latest_sha = commits[0]["sha"][:7] if commits else ""
-        except Exception:
-            latest_sha = ""
-    else:
-        latest_sha = ""
-
-    js = JenkinsService(Config.JENKINS_URL, Config.JENKINS_USERNAME, Config.JENKINS_API_TOKEN, project.jenkins_job_name)
-    try:
-        result = js.trigger_build(parameters={
-            "REPOSITORY": project.full_name,
-            "BRANCH": project.default_branch,
-            "COMMIT_SHA": latest_sha,
-            "TRIGGERED_BY": username,
-        })
-        return jsonify({"msg": "Build triggered", "data": result if isinstance(result, dict) else {}}), 200
-    except Exception as e:
-        return jsonify({"msg": f"Failed to trigger build: {str(e)}"}), 502

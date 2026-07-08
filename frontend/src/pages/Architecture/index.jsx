@@ -18,7 +18,7 @@ const layers = [
   {
     title: 'Orchestration Engine',
     icon: FiActivity,
-    description: 'Event-driven incident detection and correlation engine. 6 collectors (GitHub, Docker, K8s, Prometheus, Grafana, Jenkins).',
+    description: 'Event-driven incident detection and correlation engine. Collectors for GitHub, Docker, K8s, Prometheus, and Grafana.',
     color: '#f59e0b',
     arrow: '↓ →',
   },

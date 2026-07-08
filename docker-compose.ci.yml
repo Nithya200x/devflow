@@ -1,0 +1,13 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      FLASK_ENV: testing
+      DATABASE_URL: sqlite:///:memory:
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1

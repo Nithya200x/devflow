@@ -68,7 +68,6 @@ function serviceData(o, key) {
 function DevFlowTimeline({ overview }) {
   const services = [
     { key: 'github', icon: FiGithub, label: 'GitHub Connection' },
-    { key: 'jenkins', icon: FiTerminal, label: 'Jenkins Pipeline' },
     { key: 'docker', icon: FiBox, label: 'Docker Container Scan' },
     { key: 'kubernetes', icon: FiServer, label: 'Kubernetes Analysis' },
     { key: 'prometheus', icon: FiBarChart2, label: 'Prometheus Metrics' },
@@ -233,7 +232,7 @@ function OverviewTab({ overview }) {
           <h3 style={{ fontSize: '0.95rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiCpu /> Deployment Info
           </h3>
-          {overview.jenkins?.job_name || overview.docker?.container_name || overview.kubernetes?.namespace ? (
+          {overview.docker?.container_name || overview.kubernetes?.namespace ? (
             <div className="deploy-info-grid">
               <div className="deploy-info-item">
                 <span className="deploy-info-label">Default Branch</span>
@@ -243,12 +242,6 @@ function OverviewTab({ overview }) {
                 <span className="deploy-info-label">Visibility</span>
                 <span className="deploy-info-value"><span className={`badge ${p.visibility === 'private' ? 'neutral' : 'success'}`}>{p.visibility || 'public'}</span></span>
               </div>
-              {overview.jenkins?.job_name && (
-                <div className="deploy-info-item">
-                  <span className="deploy-info-label">Jenkins Job</span>
-                  <span className="deploy-info-value">{overview.jenkins.job_name}</span>
-                </div>
-              )}
               {overview.docker?.container_name && (
                 <div className="deploy-info-item">
                   <span className="deploy-info-label">Docker Container</span>
@@ -880,8 +873,6 @@ function calcHealthScore(overview) {
   let score = 0;
   const gh = overview.github || {};
   if (gh.connected && !gh.error) score += 40;
-  const jenkins = overview.jenkins || {};
-  if (jenkins.connected && jenkins.healthy) score += 15;
   const docker = overview.docker || {};
   if (docker.connected && docker.running) score += 15;
   const k8s = overview.kubernetes || {};

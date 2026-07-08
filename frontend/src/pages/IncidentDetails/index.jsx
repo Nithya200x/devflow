@@ -36,12 +36,7 @@ export default function IncidentDetails() {
 
   const severityClass = incident.severity === 'critical' ? 'danger' : incident.severity === 'high' ? 'warning' : 'neutral';
 
-  const jenkinsEvidence = incident.evidence?.find(e => e.source === 'jenkins');
-  const jenkinsData = jenkinsEvidence?.data || {};
-  const buildInfo = jenkinsData?.metadata || {};
-  const consoleLogs = Array.isArray(jenkinsData?.logs) ? jenkinsData.logs : [];
-  const buildUrl = buildInfo?.build_url || '';
-  const buildNumber = incident.build_number || buildInfo?.build_number || '';
+  const buildNumber = incident.build_number || '';
 
   const formatDuration = (seconds) => {
     if (!seconds && seconds !== 0) return '-';
@@ -176,43 +171,9 @@ export default function IncidentDetails() {
                       {ev.collected_at ? new Date(ev.collected_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}
                     </span>
                   </div>
-                  {ev.source === 'jenkins' && (
-                    <div>
-                      {ev.data?.metadata?.build_url && (
-                        <a href={ev.data.metadata.build_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', marginBottom: '0.4rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <FiExternalLink size={12} /> Open Build
-                        </a>
-                      )}
-                      {ev.data?.metadata?.build_status && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          Status: <span className={`badge ${ev.data.metadata.build_status === 'failed' ? 'danger' : ev.data.metadata.build_status === 'success' ? 'success' : 'warning'}`} style={{ fontSize: '0.65rem' }}>{ev.data.metadata.build_status}</span>
-                        </p>
-                      )}
-                      {ev.data?.metadata?.build_result && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Result: {ev.data.metadata.build_result}</p>
-                      )}
-                      {ev.data?.metadata?.duration_seconds !== undefined && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Duration: {formatDuration(ev.data.metadata.duration_seconds)}</p>
-                      )}
-                      {consoleLogs.length > 0 && (
-                        <details style={{ marginTop: '0.5rem' }}>
-                          <summary style={{ cursor: 'pointer', color: 'var(--accent-color)', fontSize: '0.8rem' }}>
-                            Console Output ({consoleLogs[0]?.length || 0} chars)
-                          </summary>
-                          <pre style={{
-                            marginTop: '0.5rem', padding: '0.5rem', fontSize: '0.7rem',
-                            maxHeight: '200px', overflow: 'auto', background: '#1a1a2e',
-                            borderRadius: '4px', color: '#ccc', whiteSpace: 'pre-wrap', wordBreak: 'break-all'
-                          }}>{consoleLogs[0] || 'No console output'}</pre>
-                        </details>
-                      )}
-                    </div>
-                  )}
-                  {ev.source !== 'jenkins' && (
-                    <pre style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, maxHeight: '120px', overflow: 'auto' }}>
-                      {JSON.stringify(ev.data, null, 2)}
-                    </pre>
-                  )}
+                  <pre style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, maxHeight: '120px', overflow: 'auto' }}>
+                    {JSON.stringify(ev.data, null, 2)}
+                  </pre>
                 </div>
               ))}
             </div>

@@ -60,21 +60,11 @@ export default function Diagnostics() {
 
       {results && (
         <>
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <div className="glass-panel" style={{ flex: 1, textAlign: 'center', padding: '1rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: '#22c55e' }}>{results.summary.healthy}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Healthy</div>
-            </div>
-            <div className="glass-panel" style={{ flex: 1, textAlign: 'center', padding: '1rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: results.summary.unhealthy > 0 ? '#ef4444' : '#22c55e' }}>{results.summary.unhealthy}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Unhealthy</div>
-            </div>
-            <div className="glass-panel" style={{ flex: 1, textAlign: 'center', padding: '1rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: results.summary.all_healthy ? '#22c55e' : '#f59e0b' }}>{results.summary.total}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Total Checks</div>
-            </div>
-          </div>
-
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+            {results.summary.all_healthy
+              ? 'All services are healthy.'
+              : `${results.summary.unhealthy} of ${results.summary.total} service(s) have issues. See Dashboard > System Health Matrix for the overview.`}
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {results.results.map((check, i) => {
               const Icon = ICON_MAP[check.key] || FiActivity;

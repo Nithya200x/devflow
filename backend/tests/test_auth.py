@@ -3,14 +3,14 @@ os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 
 import pytest
 from app import create_app
+
 from extensions import db as _db
 from models import User
 
 
 @pytest.fixture
 def app():
-    application = create_app()
-    application.config['TESTING'] = True
+    application = create_app(testing=True)
     application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     with application.app_context():
         _db.create_all()

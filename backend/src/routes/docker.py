@@ -3,6 +3,7 @@ import traceback
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from services.docker_service import DockerService, DockerServiceError
+from utils.environment import make_service_status, get_environment_display
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,11 @@ def _not_configured(reason="Docker Engine not connected"):
 def health():
     _ensure_connected()
     status = _docker.health_check()
+    if "status" not in status:
+        status_info = make_service_status(status.get("connected", False), "Docker")
+        status["status"] = status_info.get("status", "unavailable")
+        status["detail"] = status_info.get("detail", "")
+        status["environment"] = status_info.get("environment", get_environment_display())
     return jsonify(status), 200 if status.get("connected") else 503
 
 

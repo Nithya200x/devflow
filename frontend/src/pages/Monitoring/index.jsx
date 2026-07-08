@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiActivity, FiBarChart2, FiPieChart, FiAlertTriangle, FiServer, FiLayers, FiEye, FiCpu, FiHardDrive } from 'react-icons/fi';
+import { FiActivity, FiBarChart2, FiPieChart, FiAlertTriangle, FiServer, FiLayers, FiCpu, FiHardDrive } from 'react-icons/fi';
 import { StatCard } from '../../components/Cards/StatCard';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { NetworkError } from '../../components/Common/NetworkError';
@@ -151,28 +151,7 @@ export default function MonitoringDashboard() {
         </div>
       </div>
 
-      <div className="grid-cards">
-        <div className="glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <FiEye size={20} style={{ color: 'var(--accent-color)' }} />
-            <h3 style={{ margin: 0 }}>Service Health</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {[
-              { name: 'Prometheus', connected: promHealth?.connected, url: '/monitoring/metrics' },
-              { name: 'Grafana', connected: grafanaHealth?.connected, url: '/monitoring/dashboards' },
-              { name: 'Alertmanager', connected: amHealth?.connected, url: '/monitoring/alerts' },
-            ].map(svc => (
-              <div key={svc.name} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', cursor: 'pointer' }}
-                onClick={() => navigate(svc.url)}>
-                <span style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', background: svc.connected ? 'var(--success-color)' : 'var(--danger-color)' }} />
-                <span style={{ flex: 1 }}>{svc.name}</span>
-                <span className={`badge ${svc.connected ? 'success' : 'danger'}`}>{svc.connected ? 'Healthy' : 'Unhealthy'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      
     </div>
   );
 }

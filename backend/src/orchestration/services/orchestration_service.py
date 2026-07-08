@@ -64,8 +64,6 @@ class OrchestrationService:
         desc = f"{event.source}: {event.event_type.name}"
         if meta.get("repository"):
             desc += f" [{meta['repository']}]"
-        if meta.get("build_number"):
-            desc += f" build #{meta['build_number']}"
         if meta.get("branch"):
             desc += f" ({meta['branch']})"
 
@@ -76,7 +74,6 @@ class OrchestrationService:
         self, event: OrchestrationEvent
     ) -> Optional[OrchestrationIncident]:
         failure_events = {
-            EventType.BUILD_FAILED,
             EventType.DEPLOYMENT_FAILED,
             EventType.CONTAINER_CRASHED,
             EventType.HEALTH_CHECK_FAILED,
@@ -93,14 +90,6 @@ class OrchestrationService:
 
         meta = event.metadata
         build_info = meta.get("build_info", {})
-
-        if context.build_number or meta.get("build_number"):
-            self.incident_service.add_timeline_event(
-                "PENDING",
-                "build_failed",
-                "jenkins",
-                f"Collecting evidence for build #{meta.get('build_number', context.build_number)}",
-            )
 
         evidence_list = self._collect_evidence(context, event)
 

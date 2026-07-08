@@ -7,9 +7,6 @@ from utils.time import to_iso
 class EventType(Enum):
     REPOSITORY_CONNECTED = auto()
     DEPLOYMENT_REQUESTED = auto()
-    BUILD_STARTED = auto()
-    BUILD_SUCCEEDED = auto()
-    BUILD_FAILED = auto()
     DEPLOYMENT_STARTED = auto()
     DEPLOYMENT_SUCCEEDED = auto()
     DEPLOYMENT_FAILED = auto()
@@ -20,13 +17,6 @@ class EventType(Enum):
     HEALTH_CHECK_FAILED = auto()
     INCIDENT_CREATED = auto()
     INCIDENT_RESOLVED = auto()
-    CONTAINER_EXITED = auto()
-    CONTAINER_UNHEALTHY = auto()
-    CONTAINER_OOM_KILLED = auto()
-    CRASH_LOOP_BACK_OFF = auto()
-    IMAGE_PULL_BACK_OFF = auto()
-    FAILED_SCHEDULING = auto()
-    NODE_NOT_READY = auto()
 
 
 class OrchestrationEvent:
@@ -84,92 +74,6 @@ class DeploymentRequested(OrchestrationEvent):
                 "environment": environment,
                 **(metadata or {}),
             },
-        )
-
-
-class BuildStarted(OrchestrationEvent):
-    def __init__(
-        self,
-        build_number: str = "",
-        repository: str = "",
-        branch: str = "",
-        commit_sha: str = "",
-        triggered_by: str = "",
-        build_info: dict = None,
-        metadata: dict = None,
-    ):
-        merged_meta = {
-            "build_number": build_number,
-            "repository": repository,
-            "branch": branch,
-            "commit_sha": commit_sha,
-            "triggered_by": triggered_by,
-            **(metadata or {}),
-        }
-        if build_info:
-            merged_meta["build_info"] = build_info
-        super().__init__(
-            event_type=EventType.BUILD_STARTED,
-            source="jenkins",
-            metadata=merged_meta,
-        )
-
-
-class BuildSucceeded(OrchestrationEvent):
-    def __init__(
-        self,
-        build_number: str = "",
-        repository: str = "",
-        branch: str = "",
-        commit_sha: str = "",
-        triggered_by: str = "",
-        build_info: dict = None,
-        metadata: dict = None,
-    ):
-        merged_meta = {
-            "build_number": build_number,
-            "repository": repository,
-            "branch": branch,
-            "commit_sha": commit_sha,
-            "triggered_by": triggered_by,
-            **(metadata or {}),
-        }
-        if build_info:
-            merged_meta["build_info"] = build_info
-        super().__init__(
-            event_type=EventType.BUILD_SUCCEEDED,
-            source="jenkins",
-            metadata=merged_meta,
-        )
-
-
-class BuildFailed(OrchestrationEvent):
-    def __init__(
-        self,
-        build_number: str = "",
-        repository: str = "",
-        branch: str = "",
-        commit_sha: str = "",
-        triggered_by: str = "",
-        reason: str = "",
-        build_info: dict = None,
-        metadata: dict = None,
-    ):
-        merged_meta = {
-            "build_number": build_number,
-            "repository": repository,
-            "branch": branch,
-            "commit_sha": commit_sha,
-            "triggered_by": triggered_by,
-            "reason": reason,
-            **(metadata or {}),
-        }
-        if build_info:
-            merged_meta["build_info"] = build_info
-        super().__init__(
-            event_type=EventType.BUILD_FAILED,
-            source="jenkins",
-            metadata=merged_meta,
         )
 
 

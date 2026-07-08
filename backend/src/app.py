@@ -15,7 +15,6 @@ from routes.deployments import deployments_bp
 from routes.clusters import clusters_bp
 from routes.incidents import incidents_bp
 from routes.github import github_bp
-from routes.jenkins import jenkins_bp
 from routes.docker import docker_bp
 from routes.kubernetes import kubernetes_bp
 from routes.orchestration import orchestration_bp
@@ -30,7 +29,6 @@ from routes.health import register_health_routes
 from utils.logging import setup_logging
 from utils.metrics import register_metrics
 from orchestration.collectors.github_collector import GitHubEvidenceCollector
-from orchestration.collectors.jenkins_collector import JenkinsEvidenceCollector
 from orchestration.collectors.docker_collector import DockerEvidenceCollector
 from orchestration.collectors.kubernetes_collector import KubernetesEvidenceCollector
 from orchestration.collectors.prometheus_collector import PrometheusEvidenceCollector
@@ -44,7 +42,6 @@ def _init_orchestration(app):
         from routes.orchestration import _service as os_service
 
         os_service.collector_registry.register("github", GitHubEvidenceCollector())
-        os_service.collector_registry.register("jenkins", JenkinsEvidenceCollector())
         os_service.collector_registry.register("docker", DockerEvidenceCollector())
         os_service.collector_registry.register(
             "kubernetes", KubernetesEvidenceCollector()
@@ -62,9 +59,11 @@ def _init_orchestration(app):
         logger.warning(f"Orchestration init skipped: {e}")
 
 
-def create_app():
+def create_app(testing=False):
     validate_environment()
     app = Flask(__name__)
+    if testing:
+        app.config['TESTING'] = True
 
     app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
@@ -121,7 +120,6 @@ def create_app():
     app.register_blueprint(incidents_bp, url_prefix='/api/v1/incidents')
     app.register_blueprint(github_bp, url_prefix='/api/v1/github')
     app.register_blueprint(orchestration_bp, url_prefix='/api/v1/orchestration')
-    app.register_blueprint(jenkins_bp, url_prefix='/api/v1/jenkins')
     app.register_blueprint(docker_bp, url_prefix='/api/v1/docker')
     app.register_blueprint(kubernetes_bp, url_prefix='/api/v1/kubernetes')
     app.register_blueprint(metrics_bp, url_prefix='/api/v1/metrics')
@@ -135,6 +133,9 @@ def create_app():
     _init_orchestration(app)
 
     register_health_routes(app)
+
+    if app.config.get('TESTING'):
+        logger.info("Testing mode — skipping slow external service initialization")
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
@@ -206,32 +207,33 @@ def create_app():
             db.session.rollback()
             logger.warning("Admin bootstrap skipped: %s", e)
 
-        try:
-            from orchestration.ai.service import AIService
-            ai = AIService()
-            provider = ai._get_provider()
-            if provider:
-                logger.info("AI service initialized: provider=%s model=%s", provider.name(), provider.model_name())
-            else:
-                logger.warning("AI service initialized but no provider configured")
-        except Exception as e:
-            logger.warning("AI service init skipped: %s", e)
+        if not app.config.get('TESTING'):
+            try:
+                from orchestration.ai.service import AIService
+                ai = AIService()
+                provider = ai._get_provider()
+                if provider:
+                    logger.info("AI service initialized: provider=%s model=%s", provider.name(), provider.model_name())
+                else:
+                    logger.warning("AI service initialized but no provider configured")
+            except Exception as e:
+                logger.warning("AI service init skipped: %s", e)
 
-    try:
-        from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
-        detector = PrometheusIncidentDetector(interval=30)
-        detector.start(app)
-        app._prometheus_detector = detector
-        logger.info("Prometheus incident detector started")
-    except Exception as e:
-        logger.warning("Prometheus incident detector init skipped: %s", e)
+    if not app.config.get('TESTING'):
+        try:
+            from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
+            detector = PrometheusIncidentDetector(interval=30)
+            detector.start(app)
+            app._prometheus_detector = detector
+            logger.info("Prometheus incident detector started")
+        except Exception as e:
+            logger.warning("Prometheus incident detector init skipped: %s", e)
 
     logger.info(f"{Config.APP_NAME} v{Config.APP_VERSION} started")
     return app
 
-app = create_app()
-
 if __name__ == "__main__":
+    app = create_app()
     app.run(
         host="0.0.0.0",
         port=Config.PORT,

@@ -285,7 +285,7 @@ def connect_repo():
 
 
 def _auto_discover_infrastructure(project):
-    """Try to match the connected repo to existing Docker, Jenkins, K8s resources."""
+    """Try to match the connected repo to existing Docker, K8s resources."""
     import fnmatch
     name_lower = project.name.lower()
 
@@ -307,29 +307,6 @@ def _auto_discover_infrastructure(project):
                     break
     except Exception as e:
         logger.debug(f"Docker auto-discovery skipped: {e}")
-
-    # Jenkins: try to find a job matching the repo name via API
-    try:
-        from config.config import Config
-        if Config.JENKINS_URL and Config.JENKINS_USERNAME:
-            import requests
-            from requests.auth import HTTPBasicAuth
-            api_token = Config.JENKINS_API_TOKEN or Config.JENKINS_TOKEN
-            resp = requests.get(
-                f"{Config.JENKINS_URL.rstrip('/')}/api/json?tree=jobs[name]",
-                auth=HTTPBasicAuth(Config.JENKINS_USERNAME, api_token),
-                timeout=10,
-            )
-            if resp.ok:
-                data = resp.json()
-                for job in data.get("jobs", []):
-                    jname = job.get("name", "").lower()
-                    if name_lower in jname or fnmatch.fnmatch(jname, f"*{name_lower}*"):
-                        project.jenkins_job_name = job.get("name", "")
-                        logger.info(f"Auto-discovered Jenkins job: {job.get('name', '')}")
-                        break
-    except Exception as e:
-        logger.debug(f"Jenkins auto-discovery skipped: {e}")
 
     # Kubernetes: try to find deployments matching the repo name
     try:

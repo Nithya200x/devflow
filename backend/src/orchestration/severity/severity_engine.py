@@ -298,13 +298,7 @@ class SeverityEngine:
         if context and context.raw_events:
             for evt in context.raw_events:
                 meta = evt.metadata
-                if evt.source == "jenkins" and "build_info" in meta:
-                    bi = meta["build_info"]
-                    if isinstance(bi, dict):
-                        result["build_result"] = bi.get("result") or result.get("build_result", "")
-                        if bi.get("building"):
-                            result["build_result"] = "RUNNING"
-                elif evt.source == "docker":
+                if evt.source == "docker":
                     result["exit_code"] = meta.get("exit_code", result.get("exit_code", 0))
                     result["reason"] = meta.get("reason", result.get("reason", ""))
                     result["container_id"] = meta.get("container_id", result.get("container_id", ""))
@@ -334,9 +328,6 @@ class SeverityEngine:
                     result["container_id"] = meta.get("container_id", result.get("container_id", ""))
 
         if event_types:
-            result["build_failure_count"] = sum(
-                1 for e in event_types if e == EventType.BUILD_FAILED
-            )
             result["health_check_failed"] = sum(
                 1 for e in event_types if e == EventType.HEALTH_CHECK_FAILED
             )

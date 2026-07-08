@@ -2,6 +2,14 @@ from unittest.mock import MagicMock, patch
 
 from app import create_app
 
+_APP = None
+
+def _get_app():
+    global _APP
+    if _APP is None:
+        _APP = create_app(testing=True)
+    return _APP
+
 
 def test_detector_skips_when_no_prometheus_url():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
@@ -16,7 +24,7 @@ def test_detector_skips_when_no_prometheus_url():
 def test_has_open_incident_returns_true_when_exists():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         detector = PrometheusIncidentDetector()
         with patch("models.Incident") as MockIncident:
@@ -27,7 +35,7 @@ def test_has_open_incident_returns_true_when_exists():
 def test_has_open_incident_returns_false_when_none():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         detector = PrometheusIncidentDetector()
         with patch("models.Incident") as MockIncident:
@@ -61,7 +69,7 @@ def test_detector_config_triggers_have_valid_queries():
 def test_detector_creates_incident_with_orchestration():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         detector = PrometheusIncidentDetector()
         mock_svc = MagicMock()
@@ -98,7 +106,7 @@ def test_detector_creates_incident_with_orchestration():
 def test_detector_skips_when_open_incident_exists():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         detector = PrometheusIncidentDetector()
         detector._has_open_incident = MagicMock(return_value=True)
@@ -112,7 +120,7 @@ def test_detector_skips_when_open_incident_exists():
 def test_detector_resolves_when_trigger_no_longer_firing():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         detector = PrometheusIncidentDetector()
 
@@ -165,7 +173,7 @@ def test_detector_resolves_when_trigger_no_longer_firing():
 def test_detector_uses_config_manager():
     from orchestration.detectors.detector_config import detector_config
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         all_config = detector_config.get_all()
         assert "high_error_rate" in all_config
@@ -181,7 +189,7 @@ def test_detector_uses_config_manager():
 def test_detector_config_can_enable_disable():
     from orchestration.detectors.detector_config import detector_config
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         updated = detector_config.update("high_error_rate", {"enabled": False})
         assert updated is not None
@@ -198,7 +206,7 @@ def test_detector_config_can_enable_disable():
 def test_detector_config_threshold_adjustment():
     from orchestration.detectors.detector_config import detector_config
 
-    app = create_app()
+    app = _get_app()
     with app.app_context():
         updated = detector_config.update("high_error_rate", {"threshold": 10.0})
         assert updated is not None
@@ -214,7 +222,7 @@ def test_detector_background_context_can_access_db():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
     import threading
 
-    app = create_app()
+    app = _get_app()
     detector = PrometheusIncidentDetector(interval=0.1)
 
     db_ok = threading.Event()
@@ -240,7 +248,7 @@ def test_detector_background_context_can_access_db():
 def test_detector_duplicate_start_does_not_create_multiple_threads():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
 
-    app = create_app()
+    app = _get_app()
     detector = PrometheusIncidentDetector(interval=30)
     detector.start(app)
     first_thread = detector._thread
@@ -257,7 +265,7 @@ def test_detector_find_open_incident_has_context_from_thread_target():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
     import threading
 
-    app = create_app()
+    app = _get_app()
     detector = PrometheusIncidentDetector(interval=0.1)
 
     results = []
@@ -284,7 +292,7 @@ def test_detector_recovers_from_failed_cycle():
     from orchestration.detectors.prometheus_detector import PrometheusIncidentDetector
     import threading
 
-    app = create_app()
+    app = _get_app()
     detector = PrometheusIncidentDetector(interval=0.2)
 
     call_count = [0]
@@ -317,7 +325,7 @@ def test_db_session_remove_called_after_detector_cycle():
     from extensions import db
     import threading
 
-    app = create_app()
+    app = _get_app()
     detector = PrometheusIncidentDetector(interval=0.1)
 
     remove_called = [False]

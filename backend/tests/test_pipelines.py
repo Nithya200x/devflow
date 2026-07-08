@@ -10,7 +10,7 @@ from models import User, ConnectedProject
 
 @pytest.fixture
 def app():
-    application = create_app()
+    application = create_app(testing=True)
     application.config['TESTING'] = True
     application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     with application.app_context():

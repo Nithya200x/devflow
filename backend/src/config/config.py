@@ -24,7 +24,6 @@ def validate_environment():
     ai_key_label = "Groq" if ai_provider == "groq" else "OpenAI"
     for var, label in [
         ("GITHUB_TOKEN", "GitHub"),
-        ("JENKINS_URL", "Jenkins"),
         ("PROMETHEUS_URL", "Prometheus"),
         ("GRAFANA_URL", "Grafana"),
         ("GRAFANA_API_KEY", "Grafana API key"),
@@ -71,19 +70,16 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = db_url if db_url else 'sqlite:///' + os.path.join(database_dir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_reset_on_return": "rollback"}
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_reset_on_return": "rollback",
+    }
 
     TOKEN_ENCRYPTION_KEY = os.getenv("TOKEN_ENCRYPTION_KEY", "devflow-default-enc-key")
     GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
     GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
     GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
     GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
-    JENKINS_URL = os.getenv("JENKINS_URL", "")
-    JENKINS_USER = os.getenv("JENKINS_USER", "")
-    JENKINS_TOKEN = os.getenv("JENKINS_TOKEN", "")
-    JENKINS_USERNAME = os.getenv("JENKINS_USERNAME", "")
-    JENKINS_API_TOKEN = os.getenv("JENKINS_API_TOKEN", "")
-    JENKINS_JOB_NAME = os.getenv("JENKINS_JOB_NAME", "devflow-pipeline")
     DOCKER_HUB_USERNAME = os.getenv("DOCKER_HUB_USERNAME", "")
     DOCKER_HUB_TOKEN = os.getenv("DOCKER_HUB_TOKEN", "")
     KUBE_CONFIG_PATH = os.getenv("KUBE_CONFIG_PATH", "")
@@ -116,7 +112,16 @@ class Config:
 
 if not Config.SQLALCHEMY_DATABASE_URI.startswith("sqlite://"):
     Config.SQLALCHEMY_ENGINE_OPTIONS.update({
-        "pool_recycle": 120,
+        "pool_recycle": 60,
         "pool_size": 5,
         "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_pre_ping": True,
+        "connect_args": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        },
     })

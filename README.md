@@ -20,7 +20,7 @@ Modern DevOps teams face challenges in correlating alerts across fragmented moni
 
 ## Novelty
 
-- **Orchestration Engine** — Unified event system that correlates signals across 6 collectors (GitHub, Docker, K8s, Prometheus, Grafana, Jenkins) into actionable incidents
+- **Orchestration Engine** — Unified event system that correlates signals across 6 collectors (GitHub, Docker, K8s, Prometheus, Grafana, Alertmanager) into actionable incidents
 - **AI-Enhanced RCA** — Integration with Groq (Llama 3.3 70B) for automated root cause analysis, confidence scoring, and fix recommendation
 - **Containerized Stack** — Full observability stack (Prometheus + Grafana + Alertmanager) deployable in a single Docker Compose command
 - **Auto-Provisioned Monitoring** — Grafana datasources and Alertmanager routes configured at startup with no manual setup
@@ -42,7 +42,7 @@ Backend API (Flask + gunicorn)
     │       ├── Kubernetes Collector
     │       ├── Prometheus Collector
     │       ├── Grafana Collector
-    │       └── Jenkins Collector
+    │       └── Alertmanager Collector
     ├──► Prometheus ──► Alertmanager ──► Webhook
     ├──► Grafana
     └──► Groq AI (RCA)

@@ -6,7 +6,6 @@
 User (Frontend :8080)  →  Backend API (:5000)  →  External Services
                               │
                               ├── GitHub (REST API)
-                              ├── Jenkins (REST API)
                               ├── Docker (Unix socket / TCP)
                               ├── Kubernetes (kubeconfig / in-cluster)
                               ├── Prometheus (HTTP API)
@@ -69,7 +68,7 @@ curl http://localhost:5000/health
 | `GET /api/v1/health` | Application | `{ "status": "ok", "version": "..." }` |
 | `GET /api/v1/docker/health` | Docker | `{ "connected": bool, "version": "...", "containers": N }` |
 | `GET /api/v1/kubernetes/health` | Kubernetes | `{ "connected": bool, "pods": N, "nodes": N }` |
-| `GET /api/v1/jenkins/health` | Jenkins | `{ "connected": bool, "server_version": "..." }` |
+
 | `GET /api/v1/prometheus/health` | Prometheus | `{ "connected": bool, "version": "...", "latency_ms": N }` |
 | `GET /api/v1/grafana/health` | Grafana | `{ "connected": bool, "version": "...", "latency_ms": N }` |
 | `GET /api/v1/alertmanager/health` | Alertmanager | `{ "connected": bool, "latency_ms": N }` |

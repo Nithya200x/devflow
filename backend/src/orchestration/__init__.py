@@ -1,7 +1,6 @@
 from orchestration.events.event_types import (
     EventType, OrchestrationEvent,
     RepositoryConnected, DeploymentRequested,
-    BuildStarted, BuildSucceeded, BuildFailed,
     DeploymentStarted, DeploymentSucceeded, DeploymentFailed,
     ContainerCrashed, PodRestarted,
     HighCPUDetected, HighMemoryDetected, HealthCheckFailed,
@@ -21,7 +20,6 @@ from orchestration.interfaces.notification_interface import NotificationProvider
 from orchestration.interfaces.ai_interface import AIAnalysisService
 from orchestration.collectors.registry import CollectorRegistry
 from orchestration.collectors.github_collector import GitHubEvidenceCollector
-from orchestration.collectors.jenkins_collector import JenkinsEvidenceCollector
 from orchestration.collectors.docker_collector import DockerEvidenceCollector
 from orchestration.collectors.kubernetes_collector import KubernetesEvidenceCollector
 from orchestration.collectors.prometheus_collector import PrometheusEvidenceCollector
@@ -30,7 +28,6 @@ from orchestration.collectors.grafana_collector import GrafanaEvidenceCollector
 __all__ = [
     "EventType", "OrchestrationEvent",
     "RepositoryConnected", "DeploymentRequested",
-    "BuildStarted", "BuildSucceeded", "BuildFailed",
     "DeploymentStarted", "DeploymentSucceeded", "DeploymentFailed",
     "ContainerCrashed", "PodRestarted",
     "HighCPUDetected", "HighMemoryDetected", "HealthCheckFailed",
@@ -41,7 +38,7 @@ __all__ = [
     "CorrelationService", "SeverityEngine", "IncidentService",
     "BaseCollector", "NotificationProvider", "AIAnalysisService",
     "CollectorRegistry",
-    "GitHubEvidenceCollector", "JenkinsEvidenceCollector",
+    "GitHubEvidenceCollector",
     "DockerEvidenceCollector", "KubernetesEvidenceCollector",
     "PrometheusEvidenceCollector", "GrafanaEvidenceCollector",
 ]

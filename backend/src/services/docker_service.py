@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import docker
 from docker.errors import DockerException, NotFound, APIError
+from utils.environment import make_service_status, get_environment_display, is_cloud
 
 logger = logging.getLogger(__name__)
 
@@ -67,18 +68,37 @@ class DockerService:
 
     def health_check(self) -> Dict[str, Any]:
         if not self._connected or not self._client:
+            self.connect()
+
+        if not self._connected or not self._client:
+            if not os.getenv("DOCKER_HOST"):
+                return {
+                    "status": "not_configured",
+                    "detail": "Docker is not configured. Set DOCKER_HOST environment variable or run on a machine with Docker installed.",
+                    "environment": get_environment_display(),
+                    "connected": False,
+                    "version": "",
+                    "api_version": "",
+                    "container_count": 0,
+                    "image_count": 0,
+                }
             return {
+                "status": "unavailable",
+                "detail": "Docker connection failed.",
+                "environment": get_environment_display(),
                 "connected": False,
                 "version": "",
                 "api_version": "",
                 "container_count": 0,
                 "image_count": 0,
             }
+
         try:
             self._client.ping()
             info = self._client.info()
             version = self._client.version()
-            return {
+            base = make_service_status(True, "Docker")
+            base.update({
                 "connected": True,
                 "version": version.get("Version", ""),
                 "api_version": version.get("ApiVersion", ""),
@@ -90,17 +110,26 @@ class DockerService:
                     "kernel": info.get("KernelVersion", ""),
                     "driver": info.get("Driver", ""),
                 },
-            }
+            })
+            return base
         except (DockerException, APIError) as e:
+            error_str = str(e)
             self._connected = False
-            return {
+            error_lower = error_str.lower()
+            if ("refused" in error_lower or "connection refused" in error_lower) and is_cloud():
+                base = make_service_status(False, "Docker", is_local_service=True, error=error_str)
+                base["detail"] = "Docker Engine is running on the development machine and cannot be accessed from the cloud deployment."
+            else:
+                base = make_service_status(False, "Docker", error=error_str)
+            base.update({
                 "connected": False,
-                "error": str(e),
+                "error": error_str,
                 "version": "",
                 "api_version": "",
                 "container_count": 0,
                 "image_count": 0,
-            }
+            })
+            return base
 
     def list_containers(self, show_all: bool = True, filters: Dict = None) -> List[Dict[str, Any]]:
         if not self._client:

@@ -18,8 +18,7 @@ devflow-main/
 *.log
 
 # Jenkins local artifacts
-jenkins-cli.jar
-jenkins-*.xml
+
 
 # Local reports
 ACCEPTANCE_REPORT.md

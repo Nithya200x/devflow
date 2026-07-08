@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-The Issue Orchestration Engine transforms DevFlow from a deployment dashboard into an event-driven incident lifecycle management platform. It correlates events across multiple DevOps tools (GitHub, Jenkins, Docker, Kubernetes, Prometheus, Grafana) and manages the complete incident flow from detection through resolution.
+The Issue Orchestration Engine transforms DevFlow from a deployment dashboard into an event-driven incident lifecycle management platform. It correlates events across multiple DevOps tools (GitHub, Docker, Kubernetes, Prometheus, Grafana) and manages the complete incident flow from detection through resolution.
 
 The engine is designed with **zero direct dependencies** on any external tool. All integrations are behind abstract interfaces, making the system future-proof and extensible.
 
@@ -29,7 +29,7 @@ backend/src/orchestration/
 │   ├── __init__.py
 │   ├── base_collector.py          # BaseEvidenceCollector
 │   ├── github_collector.py        # GitHubEvidenceCollector
-│   ├── jenkins_collector.py       # JenkinsEvidenceCollector
+│   ├── alertmanager_collector.py  # AlertmanagerEvidenceCollector
 │   ├── docker_collector.py        # DockerEvidenceCollector
 │   ├── kubernetes_collector.py    # KubernetesEvidenceCollector
 │   ├── prometheus_collector.py    # PrometheusEvidenceCollector
@@ -142,9 +142,6 @@ Future: AI Analysis → Notification → Resolution
 |-------|--------|---------|
 | `RepositoryConnected` | github | Repo connection |
 | `DeploymentRequested` | github | Deploy trigger |
-| `BuildStarted` | jenkins | Build start |
-| `BuildSucceeded` | jenkins | Build pass |
-| `BuildFailed` | jenkins | Build fail |
 | `DeploymentStarted` | kubernetes | Deploy start |
 | `DeploymentSucceeded` | kubernetes | Deploy success |
 | `DeploymentFailed` | kubernetes | Deploy failure |
@@ -239,7 +236,7 @@ TimelineEntry(timestamp, event_type, source, description, metadata)
 Example:
 ```
 10:00 Deployment Started (kubernetes)
-10:01 Build Started (jenkins)
+10:01 Build Started (github)
 10:03 Docker Build Completed (docker)
 10:05 K8s Deployment Started (kubernetes)
 10:06 Pod CrashLoopBackOff (kubernetes)

@@ -2,6 +2,7 @@ import logging
 import time
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
+from utils.environment import make_service_status, get_environment, get_environment_display
 
 logger = logging.getLogger(__name__)
 
@@ -75,40 +76,133 @@ def _check_service(name):
         result = svc.health_check()
         elapsed = round((time.time() - start) * 1000, 2)
         result["latency_ms"] = elapsed
+        if "status" not in result:
+            status_info = make_service_status(result.get("connected", False), name)
+            result["status"] = status_info.get("status", "unavailable")
+            result["detail"] = status_info.get("detail", "")
+            result["environment"] = status_info.get("environment", get_environment_display())
         return result
     except Exception as e:
         return {"connected": False, "error": str(e), "latency_ms": 0}
 
 
 def _check_db():
-    try:
-        from extensions import db
-        start = time.time()
-        db.session.execute(db.text("SELECT 1"))
-        elapsed = round((time.time() - start) * 1000, 2)
-        return {"connected": True, "latency_ms": elapsed, "version": "PostgreSQL 15"}
-    except Exception as e:
-        return {"connected": False, "error": str(e), "latency_ms": 0}
+    errors = []
+    for attempt in range(3):
+        try:
+            from extensions import db
+            from sqlalchemy import exc as sa_exc
+            start = time.time()
+            db.session.execute(db.text("SELECT 1"))
+            db.session.commit()
+            elapsed = round((time.time() - start) * 1000, 2)
+            return {"connected": True, "latency_ms": elapsed, "version": "PostgreSQL 15"}
+        except sa_exc.TimeoutError as e:
+            errors.append(f"Attempt {attempt + 1}: timeout - {e}")
+            time.sleep(1)
+        except sa_exc.OperationalError as e:
+            err_str = str(e).lower()
+            if "ssl" in err_str and "eof" in err_str:
+                errors.append(f"Attempt {attempt + 1}: SSL EOF - {e}")
+                from extensions import db
+                db.session.rollback()
+                db.engine.dispose()
+                time.sleep(2)
+            elif "server closed" in err_str or "connection" in err_str:
+                errors.append(f"Attempt {attempt + 1}: connection lost - {e}")
+                from extensions import db
+                db.session.rollback()
+                db.engine.dispose()
+                time.sleep(2)
+            else:
+                errors.append(f"Attempt {attempt + 1}: {e}")
+                break
+        except Exception as e:
+            errors.append(str(e))
+            break
+    return {"connected": False, "error": "; ".join(errors), "latency_ms": 0}
 
 
 def _check_ai():
-    config = {}
     try:
         from flask import current_app
-        config = {
-            "provider": current_app.config.get("AI_PROVIDER", "not_set"),
+        provider = current_app.config.get("AI_PROVIDER", "")
+        key_set = bool(current_app.config.get("GROQ_API_KEY"))
+
+        if not key_set:
+            return {
+                "status": "not_configured",
+                "detail": "GROQ_API_KEY is not set. Configure it to enable AI analysis.",
+                "provider": provider,
+                "model": current_app.config.get("GROQ_MODEL", "not_set"),
+                "key_set": False,
+                "connected": False,
+            }
+
+        if provider == "groq" and key_set:
+            try:
+                from orchestration.ai.providers.groq import GroqProvider
+                api_key = current_app.config.get("GROQ_API_KEY", "")
+                model = current_app.config.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+                groq = GroqProvider(api_key=api_key, model=model, timeout=10)
+                result = groq.analyze("Respond with exactly: HEALTHY")
+                if result and "HEALTHY" in str(result).upper():
+                    return {
+                        "status": "healthy",
+                        "detail": "Groq AI is connected and responding.",
+                        "provider": provider,
+                        "model": current_app.config.get("GROQ_MODEL", "not_set"),
+                        "key_set": True,
+                        "connected": True,
+                    }
+                return {
+                    "status": "healthy",
+                    "detail": "Groq AI is configured and operational.",
+                    "provider": provider,
+                    "model": current_app.config.get("GROQ_MODEL", "not_set"),
+                    "key_set": True,
+                    "connected": True,
+                }
+            except Exception as e:
+                error_str = str(e).lower()
+                if "401" in error_str or "unauthorized" in error_str or "invalid" in error_str:
+                    status = "authentication_failed"
+                    detail = "Groq API key is invalid or unauthorized."
+                elif "429" in error_str or "quota" in error_str or "rate" in error_str:
+                    status = "connection_failed"
+                    detail = "Groq API rate limit exceeded or quota reached."
+                elif "timeout" in error_str or "timed out" in error_str:
+                    status = "unreachable"
+                    detail = "Groq API is unreachable (timeout)."
+                else:
+                    status = "connection_failed"
+                    detail = f"Groq API request failed: {str(e)[:200]}"
+                return {
+                    "status": status,
+                    "detail": detail,
+                    "provider": provider,
+                    "model": current_app.config.get("GROQ_MODEL", "not_set"),
+                    "key_set": True,
+                    "connected": False,
+                }
+
+        return {
+            "status": "not_configured",
+            "detail": f"AI provider '{provider}' is not supported or not configured.",
+            "provider": provider,
             "model": current_app.config.get("GROQ_MODEL", "not_set"),
-            "key_set": bool(current_app.config.get("GROQ_API_KEY")),
+            "key_set": False,
+            "connected": False,
         }
-    except Exception:
-        config = {"provider": "unknown", "key_set": False}
-    return {
-        "connected": config.get("key_set", False),
-        "provider": config.get("provider", "unknown"),
-        "model": config.get("model", "unknown"),
-        "key_set": config.get("key_set", False),
-        "latency_ms": 0,
-    }
+    except Exception as e:
+        return {
+            "status": "connection_failed",
+            "detail": f"AI check failed: {str(e)[:200]}",
+            "provider": "unknown",
+            "model": "unknown",
+            "key_set": False,
+            "connected": False,
+        }
 
 
 @diagnostics_bp.route("", methods=["GET"])

@@ -2,9 +2,17 @@ from app import create_app
 from unittest.mock import MagicMock, patch
 from sqlalchemy import exc as sa_exc
 
+_APP = None
+
+def _get_app():
+    global _APP
+    if _APP is None:
+        _APP = create_app(testing=True)
+    return _APP
+
 
 def test_health_endpoint_reports_service_status():
-    client = create_app().test_client()
+    client = _get_app().test_client()
 
     response = client.get("/health")
 
@@ -64,7 +72,7 @@ def test_retry_on_db_disconnect_passes_non_ssl_errors():
 
 
 def test_metrics_endpoint_returns_200_and_prometheus_content_type():
-    client = create_app().test_client()
+    client = _get_app().test_client()
     resp = client.get("/metrics")
     assert resp.status_code == 200
     assert resp.content_type.startswith("text/plain; version=")
@@ -72,7 +80,7 @@ def test_metrics_endpoint_returns_200_and_prometheus_content_type():
 
 
 def test_metrics_endpoint_contains_devflow_metric_definitions():
-    client = create_app().test_client()
+    client = _get_app().test_client()
     resp = client.get("/metrics")
     body = resp.data.decode()
     assert '# HELP devflow_http_requests_total' in body
@@ -86,7 +94,7 @@ def test_metrics_endpoint_contains_devflow_metric_definitions():
 
 
 def test_metrics_counters_increment_on_request():
-    client = create_app().test_client()
+    client = _get_app().test_client()
     client.get("/health")
     resp = client.get("/metrics")
     body = resp.data.decode()

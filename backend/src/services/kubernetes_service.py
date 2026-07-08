@@ -5,6 +5,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from utils.time import to_iso
+from utils.environment import make_service_status, get_environment_display, is_cloud
 
 import kubernetes
 from kubernetes import client, config, watch
@@ -82,7 +83,24 @@ class KubernetesService:
 
     def health_check(self) -> Dict[str, Any]:
         if not self._connected or not self._core:
-            return {
+            self.connect()
+
+        if not self._connected or not self._core:
+            if not self._kubeconfig_available():
+                base = make_service_status(False, "Kubernetes", is_local_service=True)
+                base["detail"] = "Kubernetes is not configured. Configure kubeconfig or run in a cluster."
+                base.update({
+                    "connected": False,
+                    "cluster_name": "",
+                    "server_version": "",
+                    "node_count": 0,
+                    "namespace_count": 0,
+                    "deployment_count": 0,
+                    "pod_count": 0,
+                })
+                return base
+            base = make_service_status(False, "Kubernetes", is_local_service=is_cloud())
+            base.update({
                 "connected": False,
                 "cluster_name": "",
                 "server_version": "",
@@ -90,7 +108,9 @@ class KubernetesService:
                 "namespace_count": 0,
                 "deployment_count": 0,
                 "pod_count": 0,
-            }
+            })
+            return base
+
         try:
             version = client.VersionApi().get_code()
             nodes = self._core.list_node().items
@@ -103,7 +123,9 @@ class KubernetesService:
                 logger.debug("Failed to list deployments for health check: %s", e)
 
             server_version = getattr(version, 'git_version', '')
-            return {
+            base = make_service_status(True, "Kubernetes")
+            base["detail"] = "Kubernetes cluster is connected and operational."
+            base.update({
                 "connected": True,
                 "cluster_name": self._cluster_info.get("name", ""),
                 "server_version": server_version,
@@ -111,19 +133,47 @@ class KubernetesService:
                 "namespace_count": len(namespaces),
                 "deployment_count": len(deployments),
                 "pod_count": len(pods),
-            }
+            })
+            return base
         except Exception as e:
+            error_str = str(e)
             self._connected = False
-            return {
+            error_lower = error_str.lower()
+            if "refused" in error_lower or "connection refused" in error_lower:
+                if is_cloud():
+                    base = make_service_status(False, "Kubernetes", is_local_service=True, error=error_str)
+                    base["detail"] = "Kubernetes cluster is running in the local development environment. Running the backend locally enables full cluster monitoring."
+                else:
+                    base = make_service_status(False, "Kubernetes", error=error_str)
+            elif "timeout" in error_lower or "timed out" in error_lower:
+                base = make_service_status(False, "Kubernetes", error=error_str)
+            elif "401" in error_str or "unauthorized" in error_lower or "authentication" in error_lower or "forbidden" in error_lower:
+                base = make_service_status(False, "Kubernetes", error=error_str)
+            else:
+                base = make_service_status(False, "Kubernetes", error=error_str)
+            base.update({
                 "connected": False,
-                "error": str(e),
+                "error": error_str,
                 "cluster_name": "",
                 "server_version": "",
                 "node_count": 0,
                 "namespace_count": 0,
                 "deployment_count": 0,
                 "pod_count": 0,
-            }
+            })
+            return base
+
+    @staticmethod
+    def _kubeconfig_available() -> bool:
+        try:
+            config.load_kube_config()
+            return True
+        except Exception:
+            try:
+                config.load_incluster_config()
+                return True
+            except Exception:
+                return False
 
     def list_pods(
         self, namespace: str = "", label_selector: str = "", field_selector: str = ""

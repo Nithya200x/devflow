@@ -7,7 +7,6 @@ import {
   FiTag, FiDatabase, FiShield, FiInfo, FiCheck, FiX, FiLoader
 } from 'react-icons/fi';
 import * as githubService from '../../services/githubService';
-import * as jenkinsService from '../../services/jenkinsService';
 import { Breadcrumbs } from '../../components/Repository/Breadcrumbs';
 import { RepositoryTabs } from '../../components/Repository/RepositoryTabs';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
@@ -25,88 +24,6 @@ export default function RepositoryDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [showDeployInfo, setShowDeployInfo] = useState(false);
-  const [deployState, setDeployState] = useState('idle');
-  const [deployError, setDeployError] = useState(null);
-  const [queueId, setQueueId] = useState(null);
-  const [buildNumber, setBuildNumber] = useState(null);
-  const [buildStatus, setBuildStatus] = useState(null);
-  const pollRef = useRef(null);
-  const emitRef = useRef(null);
-
-  const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    if (emitRef.current) { clearTimeout(emitRef.current); emitRef.current = null; }
-  };
-
-  const pollQueue = useCallback(async (qId) => {
-    try {
-      const res = await jenkinsService.getQueueStatus(qId);
-      const data = res.data;
-      if (data.build_number) {
-        setBuildNumber(data.build_number);
-        setQueueId(null);
-        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-        pollBuild(data.build_number);
-        return;
-      }
-    } catch {
-    }
-  }, []);
-
-  const pollBuild = useCallback((bNum) => {
-    const check = async () => {
-      try {
-        const res = await jenkinsService.getBuildStatus(bNum);
-        const info = res.data;
-        setBuildStatus(info.status);
-        if (info.status === 'success' || info.status === 'failed' || info.status === 'aborted') {
-          stopPolling();
-          setDeployState(info.status);
-          if (info.status === 'failed') {
-            setDeployError('Build failed');
-          }
-        }
-      } catch {
-        stopPolling();
-        setDeployState('failed');
-        setDeployError('Failed to check build status');
-      }
-    };
-    check();
-    pollRef.current = setInterval(check, 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => stopPolling();
-  }, []);
-
-  const handleDeployClick = async () => {
-    if (deployState === 'running' || deployState === 'queued') return;
-    if (!repo) return;
-    setDeployState('queued');
-    setDeployError(null);
-    setQueueId(null);
-    setBuildNumber(null);
-    setBuildStatus(null);
-    setShowDeployInfo(true);
-    try {
-      const res = await jenkinsService.triggerBuild({
-        repository: repo.name || '',
-        branch: repo.default_branch || '',
-        commit_sha: '',
-        triggered_by: '',
-      });
-      const data = res.data;
-      setQueueId(data.queue_id);
-      if (data.queue_id) {
-        pollQueue(data.queue_id);
-      }
-    } catch (err) {
-      setDeployState('failed');
-      setDeployError(err.response?.data?.msg || err.message || 'Failed to trigger build');
-    }
-  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -258,58 +175,7 @@ export default function RepositoryDetail() {
         <button className="btn btn-success" onClick={() => navigate(`/github/repos/${repoId}/pulls`)}>
           <FiGitPullRequest size={16} /> View Pull Requests
         </button>
-        <button className="btn btn-danger" onClick={handleDeployClick} disabled={deployState === 'running' || deployState === 'queued'}>
-          <FiSend size={16} /> {deployState === 'running' || deployState === 'queued' ? 'Deploying...' : 'Deploy'}
-        </button>
       </div>
-
-      {showDeployInfo && (
-        <div className="glass-panel deploy-notice" style={{ marginBottom: '1.5rem', borderColor: deployState === 'success' ? 'rgba(16, 185, 129, 0.3)' : deployState === 'failed' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)' }}>
-          {(deployState === 'queued' || deployState === 'running') && <FiLoader size={20} style={{ color: 'var(--warning-color)', animation: 'spin 1s linear infinite' }} />}
-          {deployState === 'success' && <FiCheck size={20} style={{ color: 'var(--success-color)' }} />}
-          {deployState === 'failed' && <FiX size={20} style={{ color: 'var(--danger-color)' }} />}
-          {deployState === 'idle' && <FiInfo size={20} style={{ color: 'var(--warning-color)' }} />}
-          <div>
-            {deployState === 'queued' && (
-              <>
-                <strong>Build queued on Jenkins...</strong>
-                {queueId && <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Queue ID: {queueId}</p>}
-              </>
-            )}
-            {deployState === 'running' && (
-              <>
-                <strong>Build #{buildNumber} is running...</strong>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Waiting for build to complete.</p>
-              </>
-            )}
-            {deployState === 'success' && (
-              <>
-                <strong>Build #{buildNumber} completed successfully!</strong>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
-                </p>
-              </>
-            )}
-            {deployState === 'failed' && (
-              <>
-                <strong>Build #{buildNumber} failed.</strong>
-                {deployError && <p style={{ color: 'var(--danger-color)', fontSize: '0.85rem', marginTop: '0.25rem' }}>{deployError}</p>}
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
-                </p>
-              </>
-            )}
-            {deployState === 'idle' && (
-              <>
-                <strong>Deploy this repository via Jenkins CI/CD pipeline.</strong>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                  Repository: {repo.name} | Branch: {repo.default_branch} | Commit: {latestCommit?.sha?.slice(0, 7) || 'N/A'}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Navigation Tabs */}
       <RepositoryTabs repoId={repoId} />
@@ -318,63 +184,6 @@ export default function RepositoryDetail() {
       <div className="repo-detail-grid" style={{ marginTop: '2rem' }}>
         {/* Left Column */}
         <div className="repo-detail-main">
-          {/* Deployment Information */}
-          <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-              <FiSend size={18} /> Deployment Information
-            </h3>
-            <div className="deploy-info-grid">
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Selected Branch</span>
-                <span className="deploy-info-value">{repo.default_branch || 'N/A'}</span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Latest Commit</span>
-                <span className="deploy-info-value">{commits?.[0]?.message?.slice(0, 50) || 'No commits yet'}</span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Latest Commit SHA</span>
-                <span className="deploy-info-value">
-                  {commits?.[0] ? (
-                    <code>{commits[0].sha?.slice(0, 7)}</code>
-                  ) : 'N/A'}
-                </span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Latest Commit Author</span>
-                <span className="deploy-info-value">{commits?.[0]?.author_name || 'N/A'}</span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Latest Commit Date</span>
-                <span className="deploy-info-value">
-                  {commits?.[0]?.date ? new Date(commits[0].date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}
-                </span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Repository Status</span>
-                <span className="deploy-info-value">
-                  <span className="badge success">Connected</span>
-                </span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Last Deployment</span>
-                <span className="deploy-info-value" style={{ color: 'var(--text-secondary)' }}>No deployments yet</span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Deployment Environment</span>
-                <span className="deploy-info-value" style={{ color: 'var(--text-secondary)' }}>Not configured</span>
-              </div>
-              <div className="deploy-info-item">
-                <span className="deploy-info-label">Current Deployment Status</span>
-                <span className="deploy-info-value" style={{ color: 'var(--text-secondary)' }}>No deployments yet</span>
-              </div>
-            </div>
-
-            <button className="btn btn-primary" onClick={handleDeployClick} style={{ marginTop: '1.25rem', width: '100%', padding: '1rem' }} disabled={deployState === 'running' || deployState === 'queued'}>
-              <FiSend size={18} /> {deployState === 'running' || deployState === 'queued' ? 'Deploying...' : 'Deploy Now'}
-            </button>
-          </div>
-
           {/* Repository Statistics */}
           <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>

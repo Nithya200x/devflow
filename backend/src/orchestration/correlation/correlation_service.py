@@ -38,12 +38,6 @@ class CorrelationService:
                 context.branch = meta.get("branch", context.branch)
                 context.commit_sha = meta.get("commit_sha", context.commit_sha)
 
-            elif source == "jenkins":
-                context.build_number = meta.get("build_number", context.build_number)
-                context.repository = meta.get("repository", context.repository)
-                context.branch = meta.get("branch", context.branch)
-                context.commit_sha = meta.get("commit_sha", context.commit_sha)
-
             elif source == "kubernetes":
                 context.deployment = meta.get("deployment", context.deployment)
                 context.pod_name = meta.get("pod_name", context.pod_name)

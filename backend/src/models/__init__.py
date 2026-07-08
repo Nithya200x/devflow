@@ -118,7 +118,6 @@ class ConnectedProject(db.Model):
     forks = db.Column(db.Integer, default=0)
     topics = db.Column(db.Text, default="")
     # DevOps mapping fields
-    jenkins_job_name = db.Column(db.String(100), default="")
     docker_container = db.Column(db.String(100), default="")
     docker_image = db.Column(db.String(200), default="")
     kubernetes_namespace = db.Column(db.String(100), default="")

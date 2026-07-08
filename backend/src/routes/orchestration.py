@@ -9,9 +9,6 @@ from utils.time import to_iso
 from orchestration.services.orchestration_service import get_orchestrator
 from orchestration.detectors.detector_config import detector_config
 from orchestration.events.event_types import (
-    BuildFailed,
-    BuildStarted,
-    BuildSucceeded,
     ContainerCrashed,
     ContainerExited,
     ContainerOOMKilled,
@@ -54,9 +51,6 @@ def ingest_event():
     event_map = {
         "REPOSITORY_CONNECTED": RepositoryConnected,
         "DEPLOYMENT_REQUESTED": DeploymentRequested,
-        "BUILD_STARTED": BuildStarted,
-        "BUILD_SUCCEEDED": BuildSucceeded,
-        "BUILD_FAILED": BuildFailed,
         "DEPLOYMENT_STARTED": DeploymentStarted,
         "DEPLOYMENT_SUCCEEDED": DeploymentSucceeded,
         "DEPLOYMENT_FAILED": DeploymentFailed,

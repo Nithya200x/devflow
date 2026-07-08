@@ -121,17 +121,11 @@ export default function AnalyticsDashboard() {
 
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiActivity /> Infrastructure Health
+            <FiActivity /> Infrastructure Health Score
           </h3>
           <div style={{ fontSize: '2rem', fontWeight: 700, color: data.infrastructureHealthScore > 50 ? '#22c55e' : '#ef4444' }}>{data.infrastructureHealthScore}%</div>
-          <div style={{ marginTop: '0.75rem' }}>
-            {healthData.map(h => (
-              <div key={h.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', fontSize: '0.8rem' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: h.status === 'Healthy' ? '#22c55e' : '#ef4444' }} />
-                <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{h.name}</span>
-                <span className={`badge ${h.status === 'Healthy' ? 'success' : 'danger'}`} style={{ fontSize: '0.65rem' }}>{h.status}</span>
-              </div>
-            ))}
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+            See Dashboard for detailed System Health Matrix
           </div>
         </div>
       </div>

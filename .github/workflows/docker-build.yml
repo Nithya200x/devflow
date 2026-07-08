@@ -6,14 +6,14 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
-      - 'docker-compose.yml'
+      - 'docker-compose*.yml'
       - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [main]
     paths:
       - 'backend/Dockerfile'
       - 'frontend/Dockerfile'
-      - 'docker-compose.yml'
+      - 'docker-compose*.yml'
 
 jobs:
   build:
@@ -52,5 +52,5 @@ jobs:
           docker image ls devflow-backend:ci
           docker image ls devflow-frontend:ci
 
-      - name: Validate compose config
-        run: docker compose config
+      - name: Validate CI compose config
+        run: docker compose -f docker-compose.ci.yml config

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiBox, FiServer, FiAlertTriangle, FiCpu, FiGithub, FiActivity,
-  FiGitBranch, FiBarChart2, FiShield, FiTerminal, FiLayers
+  FiGitBranch, FiBarChart2, FiShield, FiLayers
 } from 'react-icons/fi';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
@@ -13,24 +13,47 @@ import * as kubernetesService from '../../services/kubernetesService';
 import * as dockerService from '../../services/dockerService';
 import * as prometheusService from '../../services/prometheusService';
 import * as grafanaService from '../../services/grafanaService';
+import * as alertmanagerService from '../../services/alertmanagerService';
+import * as diagnosticsService from '../../services/diagnosticsService';
 import * as orchestrationService from '../../services/orchestrationService';
 
 const HEALTH_SERVICES = [
   { key: 'github', label: 'GitHub', icon: FiGithub },
   { key: 'docker', label: 'Docker', icon: FiBox },
-  { key: 'jenkins', label: 'Jenkins', icon: FiTerminal },
   { key: 'kubernetes', label: 'Kubernetes', icon: FiServer },
   { key: 'prometheus', label: 'Prometheus', icon: FiBarChart2 },
   { key: 'grafana', label: 'Grafana', icon: FiActivity },
+  { key: 'alertmanager', label: 'Alertmanager', icon: FiAlertTriangle },
   { key: 'groq', label: 'Groq AI', icon: FiCpu },
 ];
 
-function HealthStatus({ name, icon: Icon, status }) {
-  const dotClass = status === 'healthy' || status === 'connected'
-    ? 'online' : status === 'degraded' || status === 'warning' ? 'warning' : 'offline';
-  const label = typeof status === 'string' ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
+const STATUS_LABELS = {
+  healthy: 'Healthy',
+  available_locally: 'Available Locally',
+  connected: 'Connected',
+  configured: 'Configured',
+  not_configured: 'Not Configured',
+  authentication_failed: 'Auth Failed',
+  connection_failed: 'Connection Failed',
+  unreachable: 'Unreachable',
+  remote_environment: 'Remote',
+  disabled: 'Disabled',
+  degraded: 'Degraded',
+  offline: 'Offline',
+};
+
+function getStatusClass(status) {
+  if (!status) return 'offline';
+  if (['healthy', 'connected', 'configured'].includes(status)) return 'online';
+  if (['available_locally', 'remote_environment', 'degraded', 'warning'].includes(status)) return 'warning';
+  return 'offline';
+}
+
+function HealthStatus({ name, icon: Icon, status, detail }) {
+  const dotClass = getStatusClass(status);
+  const label = STATUS_LABELS[status] || (typeof status === 'string' ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
   return (
-    <div className="health-item">
+    <div className="health-item" title={detail || label}>
       <div className={`health-dot ${dotClass}`} />
       <Icon size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
       <span className="health-label">{name}</span>
@@ -60,7 +83,7 @@ export default function Dashboard() {
       const [
         pData, incData, gh, analysisData,
         ghHealth, dockerHealth, k8sHealth,
-        promHealth, grafanaHealth,
+        promHealth, grafanaHealth, amHealth, diagResult,
       ] = await Promise.all([
         projectService.getProjects().catch(() => []),
         orchestrationService.getIncidents().catch(() => []),
@@ -71,7 +94,10 @@ export default function Dashboard() {
         kubernetesService.getKubernetesHealth().catch(() => null),
         prometheusService.getPrometheusHealth().catch(() => null),
         grafanaService.getGrafanaHealth().catch(() => null),
+        alertmanagerService.getAlertmanagerHealth().catch(() => null),
+        diagnosticsService.runDiagnostics().catch(() => null),
       ]);
+      const aiResult = diagResult?.results?.find(r => r.key === 'ai');
 
       setProjects(Array.isArray(pData) ? pData : []);
       setIncidents(Array.isArray(incData) ? incData : []);
@@ -79,13 +105,13 @@ export default function Dashboard() {
       setAnalyses(analysisData?.analyses || []);
 
       setServiceHealth({
-        github: ghHealth?.connected ? 'healthy' : 'offline',
-        docker: dockerHealth?.status === 'healthy' ? 'healthy' : dockerHealth?.containers > 0 ? 'degraded' : 'offline',
-        jenkins: 'not_configured',
-        kubernetes: k8sHealth?.connected ? 'healthy' : 'offline',
-        prometheus: promHealth?.connected ? 'healthy' : 'offline',
-        grafana: grafanaHealth?.connected ? 'healthy' : 'offline',
-        groq: 'not_configured',
+        github: ghHealth?.connected ? 'healthy' : 'not_configured',
+        docker: dockerHealth?.status || (dockerHealth?.connected ? 'healthy' : 'offline'),
+        kubernetes: k8sHealth?.status || (k8sHealth?.connected ? 'healthy' : 'offline'),
+        prometheus: promHealth?.status || (promHealth?.connected ? 'healthy' : 'offline'),
+        grafana: grafanaHealth?.status || (grafanaHealth?.connected ? 'healthy' : 'offline'),
+        alertmanager: amHealth?.status || (amHealth?.connected ? 'healthy' : 'offline'),
+        groq: aiResult?.status || 'not_configured',
       });
 
       setError(null);
@@ -105,7 +131,7 @@ export default function Dashboard() {
   const connectedRepos = ghStatus?.connected_repos || projects.length;
   const aiFixes = analyses.length;
 
-  const healthyCount = Object.values(serviceHealth).filter(s => s === 'healthy' || s === 'connected').length;
+  const healthyCount = Object.values(serviceHealth).filter(s => ['healthy', 'connected', 'configured'].includes(s)).length;
 
   const recentIncidents = incidents.slice(0, 5);
   const recentAnalyses = analyses.slice(0, 3);

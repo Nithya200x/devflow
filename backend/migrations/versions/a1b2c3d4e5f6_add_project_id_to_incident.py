@@ -44,7 +44,6 @@ def upgrade():
             sa.Column('stars', sa.Integer(), nullable=True),
             sa.Column('forks', sa.Integer(), nullable=True),
             sa.Column('topics', sa.Text(), nullable=True),
-            sa.Column('jenkins_job_name', sa.String(100), nullable=True),
             sa.Column('docker_container', sa.String(100), nullable=True),
             sa.Column('docker_image', sa.String(200), nullable=True),
             sa.Column('kubernetes_namespace', sa.String(100), nullable=True),
