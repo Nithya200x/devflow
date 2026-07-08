@@ -112,7 +112,7 @@ class Config:
 
 if not Config.SQLALCHEMY_DATABASE_URI.startswith("sqlite://"):
     Config.SQLALCHEMY_ENGINE_OPTIONS.update({
-        "pool_recycle": 60,
+        "pool_recycle": 30,
         "pool_size": 5,
         "max_overflow": 10,
         "pool_timeout": 30,
@@ -123,5 +123,6 @@ if not Config.SQLALCHEMY_DATABASE_URI.startswith("sqlite://"):
             "keepalives_idle": 30,
             "keepalives_interval": 10,
             "keepalives_count": 5,
+            "sslmode": "require",
         },
     })

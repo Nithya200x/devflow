@@ -47,34 +47,42 @@ class DetectorConfigManager:
             "has_app_context in _ensure_loaded: %s (thread=%s)",
             flask.has_app_context(), threading.current_thread().name,
         )
-        try:
-            records = DetectorConfigDB.query.all()
-            if not records:
-                self._seed_defaults()
+        import time
+        for attempt in range(3):
+            try:
                 records = DetectorConfigDB.query.all()
-            for rec in records:
-                self._config[rec.trigger_key] = {
-                    "enabled": rec.enabled,
-                    "query": rec.promql,
-                    "severity": rec.severity,
-                    "title": rec.title_template,
-                    "description": rec.description_template,
-                    "threshold": rec.threshold,
-                }
-            logger.info("Loaded %d detector trigger configs", len(self._config))
-        except Exception:
-            db.session.rollback()
-            logger.exception("Failed to load detector config, using defaults")
-            self._config = {}
-            for key, cfg in DEFAULT_TRIGGERS.items():
-                self._config[key] = {
-                    "enabled": True,
-                    "query": cfg["query"],
-                    "severity": cfg["severity"],
-                    "title": cfg["title"],
-                    "description": cfg["description"],
-                    "threshold": cfg.get("threshold"),
-                }
+                if not records:
+                    self._seed_defaults()
+                    records = DetectorConfigDB.query.all()
+                for rec in records:
+                    self._config[rec.trigger_key] = {
+                        "enabled": rec.enabled,
+                        "query": rec.promql,
+                        "severity": rec.severity,
+                        "title": rec.title_template,
+                        "description": rec.description_template,
+                        "threshold": rec.threshold,
+                    }
+                logger.info("Loaded %d detector trigger configs", len(self._config))
+                return
+            except Exception as e:
+                db.session.rollback()
+                if attempt < 2 and ("SSL" in str(e) or "decryption" in str(e) or "connection" in str(e).lower()):
+                    logger.warning("DB connection error in detector_config (attempt %d/3): %s", attempt + 1, e)
+                    time.sleep(1)
+                    continue
+                logger.exception("Failed to load detector config, using defaults")
+                self._config = {}
+                for key, cfg in DEFAULT_TRIGGERS.items():
+                    self._config[key] = {
+                        "enabled": True,
+                        "query": cfg["query"],
+                        "severity": cfg["severity"],
+                        "title": cfg["title"],
+                        "description": cfg["description"],
+                        "threshold": cfg.get("threshold"),
+                    }
+                return
 
     def _seed_defaults(self):
         for key, cfg in DEFAULT_TRIGGERS.items():

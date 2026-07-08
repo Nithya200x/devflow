@@ -4,7 +4,7 @@ services:
       context: ./backend
     environment:
       FLASK_ENV: testing
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: "sqlite:///:memory:"
 
   frontend:
     build:
